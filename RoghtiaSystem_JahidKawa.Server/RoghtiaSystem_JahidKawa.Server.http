@@ -1,0 +1,6 @@
+@RoghtiaSystem_JahidKawa.Server_HostAddress = http://localhost:5201
+
+GET {{RoghtiaSystem_JahidKawa.Server_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

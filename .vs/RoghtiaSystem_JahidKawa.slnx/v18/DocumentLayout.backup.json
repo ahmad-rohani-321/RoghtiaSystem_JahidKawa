@@ -1,0 +1,118 @@
+{
+  "Version": 1,
+  "WorkspaceRootPath": "D:\\Projects\\RoghtiaSystem_JahidKawa\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{FF9443B6-AB99-ED26-16CB-1D329188D1CB}|RoghtiaSystem_JahidKawa.Server\\RoghtiaSystem_JahidKawa.Server.csproj|d:\\projects\\roghtiasystem_jahidkawa\\roghtiasystem_jahidkawa.server\\data\\models\\users.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{FF9443B6-AB99-ED26-16CB-1D329188D1CB}|RoghtiaSystem_JahidKawa.Server\\RoghtiaSystem_JahidKawa.Server.csproj|solutionrelative:roghtiasystem_jahidkawa.server\\data\\models\\users.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{FF9443B6-AB99-ED26-16CB-1D329188D1CB}|RoghtiaSystem_JahidKawa.Server\\RoghtiaSystem_JahidKawa.Server.csproj|d:\\projects\\roghtiasystem_jahidkawa\\roghtiasystem_jahidkawa.server\\controllers\\authcontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{FF9443B6-AB99-ED26-16CB-1D329188D1CB}|RoghtiaSystem_JahidKawa.Server\\RoghtiaSystem_JahidKawa.Server.csproj|solutionrelative:roghtiasystem_jahidkawa.server\\controllers\\authcontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{FF9443B6-AB99-ED26-16CB-1D329188D1CB}|RoghtiaSystem_JahidKawa.Server\\RoghtiaSystem_JahidKawa.Server.csproj|d:\\projects\\roghtiasystem_jahidkawa\\roghtiasystem_jahidkawa.server\\viewmodels\\login.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{FF9443B6-AB99-ED26-16CB-1D329188D1CB}|RoghtiaSystem_JahidKawa.Server\\RoghtiaSystem_JahidKawa.Server.csproj|solutionrelative:roghtiasystem_jahidkawa.server\\viewmodels\\login.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{FF9443B6-AB99-ED26-16CB-1D329188D1CB}|RoghtiaSystem_JahidKawa.Server\\RoghtiaSystem_JahidKawa.Server.csproj|d:\\projects\\roghtiasystem_jahidkawa\\roghtiasystem_jahidkawa.server\\services\\usernames.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{FF9443B6-AB99-ED26-16CB-1D329188D1CB}|RoghtiaSystem_JahidKawa.Server\\RoghtiaSystem_JahidKawa.Server.csproj|solutionrelative:roghtiasystem_jahidkawa.server\\services\\usernames.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{FF9443B6-AB99-ED26-16CB-1D329188D1CB}|RoghtiaSystem_JahidKawa.Server\\RoghtiaSystem_JahidKawa.Server.csproj|d:\\projects\\roghtiasystem_jahidkawa\\roghtiasystem_jahidkawa.server\\data\\maindbcontext.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{FF9443B6-AB99-ED26-16CB-1D329188D1CB}|RoghtiaSystem_JahidKawa.Server\\RoghtiaSystem_JahidKawa.Server.csproj|solutionrelative:roghtiasystem_jahidkawa.server\\data\\maindbcontext.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{FF9443B6-AB99-ED26-16CB-1D329188D1CB}|RoghtiaSystem_JahidKawa.Server\\RoghtiaSystem_JahidKawa.Server.csproj|d:\\projects\\roghtiasystem_jahidkawa\\roghtiasystem_jahidkawa.server\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{FF9443B6-AB99-ED26-16CB-1D329188D1CB}|RoghtiaSystem_JahidKawa.Server\\RoghtiaSystem_JahidKawa.Server.csproj|solutionrelative:roghtiasystem_jahidkawa.server\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    }
+  ],
+  "DocumentGroupContainers": [
+    {
+      "Orientation": 0,
+      "VerticalTabListWidth": 256,
+      "DocumentGroups": [
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": 3,
+          "Children": [
+            {
+              "$type": "Document",
+              "DocumentIndex": 3,
+              "Title": "UserNames.cs",
+              "DocumentMoniker": "D:\\Projects\\RoghtiaSystem_JahidKawa\\RoghtiaSystem_JahidKawa.Server\\Services\\UserNames.cs",
+              "RelativeDocumentMoniker": "RoghtiaSystem_JahidKawa.Server\\Services\\UserNames.cs",
+              "ToolTip": "D:\\Projects\\RoghtiaSystem_JahidKawa\\RoghtiaSystem_JahidKawa.Server\\Services\\UserNames.cs",
+              "RelativeToolTip": "RoghtiaSystem_JahidKawa.Server\\Services\\UserNames.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAoAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-09-18T10:34:17.986Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "Login.cs",
+              "DocumentMoniker": "D:\\Projects\\RoghtiaSystem_JahidKawa\\RoghtiaSystem_JahidKawa.Server\\ViewModels\\Login.cs",
+              "RelativeDocumentMoniker": "RoghtiaSystem_JahidKawa.Server\\ViewModels\\Login.cs",
+              "ToolTip": "D:\\Projects\\RoghtiaSystem_JahidKawa\\RoghtiaSystem_JahidKawa.Server\\ViewModels\\Login.cs",
+              "RelativeToolTip": "RoghtiaSystem_JahidKawa.Server\\ViewModels\\Login.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAUAAAAsAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-09-17T04:39:18.688Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "AuthController.cs",
+              "DocumentMoniker": "D:\\Projects\\RoghtiaSystem_JahidKawa\\RoghtiaSystem_JahidKawa.Server\\Controllers\\AuthController.cs",
+              "RelativeDocumentMoniker": "RoghtiaSystem_JahidKawa.Server\\Controllers\\AuthController.cs",
+              "ToolTip": "D:\\Projects\\RoghtiaSystem_JahidKawa\\RoghtiaSystem_JahidKawa.Server\\Controllers\\AuthController.cs",
+              "RelativeToolTip": "RoghtiaSystem_JahidKawa.Server\\Controllers\\AuthController.cs",
+              "ViewState": "AgIAAA0AAAAAAAAAAAAIwBoAAABZAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-09-16T17:49:02.474Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "Users.cs",
+              "DocumentMoniker": "D:\\Projects\\RoghtiaSystem_JahidKawa\\RoghtiaSystem_JahidKawa.Server\\Data\\Models\\Users.cs",
+              "RelativeDocumentMoniker": "RoghtiaSystem_JahidKawa.Server\\Data\\Models\\Users.cs",
+              "ToolTip": "D:\\Projects\\RoghtiaSystem_JahidKawa\\RoghtiaSystem_JahidKawa.Server\\Data\\Models\\Users.cs",
+              "RelativeToolTip": "RoghtiaSystem_JahidKawa.Server\\Data\\Models\\Users.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAoAAAAyAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-09-16T17:35:30.9Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 5,
+              "Title": "Program.cs",
+              "DocumentMoniker": "D:\\Projects\\RoghtiaSystem_JahidKawa\\RoghtiaSystem_JahidKawa.Server\\Program.cs",
+              "RelativeDocumentMoniker": "RoghtiaSystem_JahidKawa.Server\\Program.cs",
+              "ToolTip": "D:\\Projects\\RoghtiaSystem_JahidKawa\\RoghtiaSystem_JahidKawa.Server\\Program.cs",
+              "RelativeToolTip": "RoghtiaSystem_JahidKawa.Server\\Program.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABUAAAAiAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-09-16T17:32:51.307Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 4,
+              "Title": "MainDbContext.cs",
+              "DocumentMoniker": "D:\\Projects\\RoghtiaSystem_JahidKawa\\RoghtiaSystem_JahidKawa.Server\\Data\\MainDbContext.cs",
+              "RelativeDocumentMoniker": "RoghtiaSystem_JahidKawa.Server\\Data\\MainDbContext.cs",
+              "ToolTip": "D:\\Projects\\RoghtiaSystem_JahidKawa\\RoghtiaSystem_JahidKawa.Server\\Data\\MainDbContext.cs",
+              "RelativeToolTip": "RoghtiaSystem_JahidKawa.Server\\Data\\MainDbContext.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAsAAAAhAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-09-16T17:28:06.216Z"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

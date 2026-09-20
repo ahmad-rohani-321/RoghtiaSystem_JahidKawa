@@ -1,0 +1,4 @@
+D:\Projects\RoghtiaSystem_JahidKawa\RoghtiaSystem_JahidKawa.Server.Tests\obj\Debug\net10.0\RoghtiaSystem_JahidKawa.Server.Tests.GeneratedMSBuildEditorConfig.editorconfig
+D:\Projects\RoghtiaSystem_JahidKawa\RoghtiaSystem_JahidKawa.Server.Tests\obj\Debug\net10.0\RoghtiaSystem_JahidKawa.Server.Tests.AssemblyInfoInputs.cache
+D:\Projects\RoghtiaSystem_JahidKawa\RoghtiaSystem_JahidKawa.Server.Tests\obj\Debug\net10.0\RoghtiaSystem_JahidKawa.Server.Tests.AssemblyInfo.cs
+D:\Projects\RoghtiaSystem_JahidKawa\RoghtiaSystem_JahidKawa.Server.Tests\obj\Debug\net10.0\RoghtiaSystem_JahidKawa.Server.Tests.csproj.CoreCompileInputs.cache

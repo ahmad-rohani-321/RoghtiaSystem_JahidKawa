@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="roghtiasystem_jahidkawa.client/roghtiasystem_jahidkawa.client.esproj">
+    <Build />
+    <Deploy />
+  </Project>
+  <Project Path="RoghtiaSystem_JahidKawa.Server/RoghtiaSystem_JahidKawa.Server.csproj" />
+</Solution>
