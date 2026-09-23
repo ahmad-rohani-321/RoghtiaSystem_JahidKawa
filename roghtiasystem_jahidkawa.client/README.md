@@ -84,6 +84,10 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for the file structure.
 
 ## Validation
 
+Patients supports authenticated `GET /api/patients`, `GET /api/patients/{id}`, `POST /api/patients` and `PUT /api/patients/{id}` through the Nuxt API proxy. The server assigns ownership from the verified token and generates immutable codes (`RT-1`, `RT-2`, ...) independently for each user. Creation serializes code allocation in a database transaction; a unique `(UserId, Code)` index enforces uniqueness. There is no patient Delete operation. Startup adds the patient table and indexes to existing databases.
+
+Name, age (whole years, 0–150) and gender (`Male`, `Female`, `Other`) are required. Phone (up to 32 characters) and address (up to 1000) are optional. The RTL page includes a responsive list, name/code/phone search, pagination and a shared create/edit form. User ownership remains internal, and code is read-only. Integration checks cover ownership, validation, concurrent code allocation and sequence persistence after restart.
+
 ```powershell
 # From the repository root:
 dotnet build RoghtiaSystem_JahidKawa.Server -p:BuildProjectReferences=false

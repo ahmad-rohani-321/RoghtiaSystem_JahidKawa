@@ -75,6 +75,21 @@ namespace RoghtiaSystem_JahidKawa.Server.Data
                     )
                     """);
                 await ExecuteAsync(connection, transaction, "CREATE INDEX IF NOT EXISTS IX_Medications_UserId_Id ON Medications (UserId, Id)");
+                await ExecuteAsync(connection, transaction, """
+                CREATE TABLE IF NOT EXISTS Patients (
+                    Id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+                    Code TEXT NOT NULL,
+                    Name TEXT NOT NULL,
+                    Phone TEXT NOT NULL,
+                    Age INTEGER NOT NULL CONSTRAINT CK_Patients_Age CHECK (Age BETWEEN 0 AND 150),
+                    Gender TEXT NOT NULL,
+                    Address TEXT NOT NULL,
+                    UserId INTEGER NOT NULL,
+                    FOREIGN KEY (UserId) REFERENCES Users (Id) ON DELETE RESTRICT
+                );
+                CREATE UNIQUE INDEX IF NOT EXISTS IX_Patients_UserId_Code ON Patients (UserId, Code);
+                CREATE INDEX IF NOT EXISTS IX_Patients_UserId_Id ON Patients (UserId, Id);
+                """);
                 await transaction.CommitAsync();
             }
             finally { await context.Database.CloseConnectionAsync(); }

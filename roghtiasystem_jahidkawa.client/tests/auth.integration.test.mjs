@@ -139,6 +139,60 @@ async function medicationRequest(origin, session, method = 'GET', options = {}) 
   })
 }
 
+test('patients enforce ownership, validation, immutable per-user codes and concurrent creation', async () => {
+  const owner = await account('patient-owner')
+  const other = await account('patient-other')
+  const fields = { name: 'Patient One', phone: '+93 700123456', age: 32, gender: 'Male', address: 'Kabul' }
+  const request = (origin, user, method = 'GET', path = '/api/patients', body) => medicationRequest(origin, user, method, { path, body })
+  const created = await request(web, owner, 'POST', '/api/patients', { ...fields, code: 'RT-999', userId: other.user.id, user: other.user })
+  assert.equal(created.status, 201)
+  const patient = await created.json()
+  assert.equal(patient.code, 'RT-1')
+  assert.deepEqual(patient.user, { id: owner.user.id, userName: owner.user.userName })
+  assert.deepEqual(Object.keys(patient).sort(), ['address', 'age', 'code', 'gender', 'id', 'name', 'phone', 'user'])
+  const secondOwner = await request(api, other, 'POST', '/api/patients', { ...fields, name: 'Private Other Patient' })
+  assert.equal(secondOwner.status, 201)
+  assert.equal((await secondOwner.json()).code, 'RT-1')
+  for (const origin of [api, web]) {
+    assert.equal((await fetch(origin + '/api/patients')).status, 401)
+    assert.equal((await request(origin, other, 'GET', `/api/patients/${patient.id}`)).status, 404)
+    assert.equal((await request(origin, other, 'PUT', `/api/patients/${patient.id}`, fields)).status, 404)
+    const updated = await request(origin, owner, 'PUT', `/api/patients/${patient.id}`, { ...fields, age: 33, code: 'RT-888', userId: other.user.id })
+    assert.equal(updated.status, 200)
+    const value = await updated.json()
+    assert.equal(value.code, 'RT-1')
+    assert.equal(value.age, 33)
+    assert.equal(value.user.id, owner.user.id)
+    assert.ok([404, 405].includes((await request(origin, owner, 'DELETE', `/api/patients/${patient.id}`)).status))
+    const list = await (await request(origin, owner, 'GET', `/api/patients?userId=${other.user.id}`)).json()
+    assert.equal(list.total, 1)
+    assert.equal(list.items[0].id, patient.id)
+    for (const invalid of [{ ...fields, name: ' ' }, { ...fields, age: -1 }, { ...fields, age: 151 }, { ...fields, age: '32' }, { ...fields, age: 1.5 }, { ...fields, gender: 'invalid' }, { ...fields, phone: 'a'.repeat(33) }, { ...fields, address: 'a'.repeat(1001) }]) {
+      assert.equal((await request(origin, owner, 'POST', '/api/patients', invalid)).status, 400)
+      assert.equal((await request(origin, owner, 'PUT', `/api/patients/${patient.id}`, invalid)).status, 400)
+    }
+  }
+  const concurrent = await Promise.all(Array.from({ length: 6 }, (_, i) => request(i % 2 ? web : api, owner, 'POST', '/api/patients', { ...fields, name: `Concurrent ${i}` })))
+  const codes = []
+  for (const response of concurrent) { assert.equal(response.status, 201); codes.push((await response.json()).code) }
+  assert.deepEqual(codes.sort(), ['RT-2', 'RT-3', 'RT-4', 'RT-5', 'RT-6', 'RT-7'])
+  const filtered = await (await request(web, owner, 'GET', '/api/patients?search=RT-1')).json()
+  assert.equal(filtered.total, 1)
+  const paged = await (await request(web, owner, 'GET', '/api/patients?page=2&pageSize=3')).json()
+  assert.equal(paged.items.length, 3)
+  assert.equal(paged.total, 7)
+  const blocked = await medicationRequest(web, owner, 'POST', { path: '/api/patients', body: fields, headers: { origin: 'https://untrusted.example' } })
+  assert.equal(blocked.status, 403)
+  const html = await (await fetch(web + '/patients', { headers: { cookie: owner.cookie } })).text()
+  assert.ok(html.includes('Patient One'))
+  assert.ok(!html.includes('Private Other Patient'))
+  await stop(apiProcess)
+  apiProcess = await startApi(apiPort, join(temporaryRoot, 'users.db'))
+  const afterRestart = await request(api, owner, 'POST', '/api/patients', fields)
+  assert.equal(afterRestart.status, 201)
+  assert.equal((await afterRestart.json()).code, 'RT-8')
+})
+
 function assertMedication(value, owner, fields) {
   assert.deepEqual(Object.keys(value).sort(), ['id', 'name', 'quantity', 'remarks', 'type', 'user'])
   assert.ok(Number.isInteger(value.id) && value.id > 0)

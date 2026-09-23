@@ -1,6 +1,5 @@
 <script setup>
 const colorMode = useColorMode()
-const route = useRoute()
 const auth = useAuth()
 const toast = useToast()
 const doctor = useDoctorInformation()
@@ -14,7 +13,6 @@ async function logout() {
   try { await auth.logout() }
   catch { toast.add({ title: 'وتل ونه شول', description: 'مهرباني وکړئ بیا هڅه وکړئ.', color: 'error' }) }
 }
-const nav = [{ to: '/', label: 'لنډیز', icon: 'i-lucide-layout-dashboard' }, { to: '/prescriptions', label: 'نسخې', icon: 'i-lucide-clipboard-plus' }, { to: '/patients', label: 'ناروغان', icon: 'i-lucide-users-round' }, { to: '/medications', label: 'درمل', icon: 'i-lucide-pill' }, { to: '/reports', label: 'راپورونه', icon: 'i-lucide-chart-no-axes-combined' }, { to: '/settings', label: 'تنظیمات', icon: 'i-lucide-settings-2' }]
 const menu = computed(() => [[{ type: 'label', label: displayName.value, description: username.value }], [{ label: 'تنظیمات', icon: 'i-lucide-settings-2', to: '/settings' }, { label: 'د پټنوم بدلول', icon: 'i-lucide-key-round', onSelect: () => { passwordOpen.value = true } }], [{ label: 'له حسابه وتل', icon: 'i-lucide-log-out', onSelect: logout }]])
 </script>
 <template>
@@ -25,12 +23,12 @@ const menu = computed(() => [[{ type: 'label', label: displayName.value, descrip
       <div class="header-center"><span class="live-dot" /> د روغتیا مدیریت سیسټم <span class="divider" /> <span>د ډاکټر کاري چاپېریال</span></div>
       <div class="header-actions">
         <UTooltip text="د رنګ حالت بدلول"><UButton :icon="colorMode.value === 'dark' ? 'i-lucide-sun' : 'i-lucide-moon'" color="neutral" variant="ghost" aria-label="د رنګ حالت بدلول" @click="colorMode.preference = colorMode.value === 'dark' ? 'light' : 'dark'" /></UTooltip>
-        <UDropdownMenu :items="menu" :ui="{ content: 'w-64 max-w-[calc(100vw-1.5rem)]', itemLabel: 'whitespace-normal break-words', itemDescription: 'break-all' }"><button type="button" class="profile" aria-label="د حساب غوراوي"><span class="avatar">{{ initials }}</span><span class="profile-copy"><strong>{{ displayName }}</strong><small dir="auto">{{ username }}</small></span><UIcon name="i-lucide-chevron-down" /></button></UDropdownMenu>
+        <UDropdownMenu :items="menu" :ui="{ content: 'w-64 max-w-[calc(100vw-1.5rem)]', itemLabel: 'whitespace-normal break-words', itemDescription: 'break-all' }"><button type="button" class="profile" aria-label="د حساب غوراوي"><UAvatar :src="doctor.information.value?.doctorPhoto || undefined" :alt="displayName" :text="initials" class="avatar" :ui="{ image: 'size-full object-cover', fallback: 'text-base' }" /><span class="profile-copy"><strong>{{ displayName }}</strong><small dir="auto">{{ username }}</small></span><UIcon name="i-lucide-chevron-down" /></button></UDropdownMenu>
       </div>
     </header>
     <main id="main" class="main-container"><slot /></main>
     <PasswordChangeModal v-model:open="passwordOpen" />
-    <nav class="bottom-nav" aria-label="اصلي لارښود"><NuxtLink v-for="item in nav" :key="item.to" :to="item.to" :class="{ active: route.path === item.to }" :aria-current="route.path === item.to ? 'page' : undefined"><UIcon :name="item.icon" /><span>{{ item.label }}</span><i /></NuxtLink></nav>
+    <BottomNavigation />
   </div>
 </template>
 
@@ -38,4 +36,11 @@ const menu = computed(() => [[{ type: 'label', label: displayName.value, descrip
 .profile-copy { min-width: 0; max-width: 200px; }
 .profile-copy strong, .profile-copy small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .profile .avatar { flex-shrink: 0; }
+.main-container { padding-bottom: calc(125px + env(safe-area-inset-bottom, 0px)); }
+@media (max-width: 860px) {
+  .main-container { padding-bottom: calc(230px + env(safe-area-inset-bottom, 0px)); }
+}
+@media (max-width: 380px) {
+  .main-container { padding-bottom: calc(270px + env(safe-area-inset-bottom, 0px)); }
+}
 </style>

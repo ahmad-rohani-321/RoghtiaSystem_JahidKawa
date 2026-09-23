@@ -12,9 +12,22 @@ namespace RoghtiaSystem_JahidKawa.Server.Data
         public DbSet<Users> Users { get; set; }
         public DbSet<DoctorInformation> DoctorInformation { get; set; }
         public DbSet<Medication> Medications { get; set; }
+        public DbSet<Patient> Patients { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
+            modelBuilder.Entity<Patient>(patient =>
+            {
+                patient.Property(p => p.Code).IsRequired().HasMaxLength(32);
+                patient.Property(p => p.Name).IsRequired().HasMaxLength(200);
+                patient.Property(p => p.Phone).IsRequired().HasMaxLength(32);
+                patient.Property(p => p.Gender).IsRequired().HasMaxLength(16);
+                patient.Property(p => p.Address).IsRequired().HasMaxLength(1000);
+                patient.HasOne(p => p.User).WithMany().HasForeignKey(p => p.UserId).OnDelete(DeleteBehavior.Restrict);
+                patient.HasIndex(p => new { p.UserId, p.Code }).IsUnique();
+                patient.HasIndex(p => new { p.UserId, p.Id });
+                patient.ToTable(table => table.HasCheckConstraint("CK_Patients_Age", "Age BETWEEN 0 AND 150"));
+            });
             modelBuilder.Entity<Users>(user =>
             {
                 user.Property(u => u.UserName).IsRequired().HasMaxLength(64);
