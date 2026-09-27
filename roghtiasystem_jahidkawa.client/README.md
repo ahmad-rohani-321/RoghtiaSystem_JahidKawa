@@ -82,7 +82,15 @@ Development keeps the JWT signing key and SQLCipher database key in `.local`. Ol
 dotnet run --project RoghtiaSystem_JahidKawa.Server -- --migrate-development-secrets
 ```
 
-The migration keeps the same secret values, writes a machine-protected copy for future launches, and preserves the database, the legacy secret file, and legacy keys. Do not delete `.local` or `RoghtiaSystemDatabase.db`; if the original Windows account is unavailable, restore a matching backup or configure `Auth:SigningKey` and `ConnectionStrings:MainDatabase` with the original database password.
+The migration keeps the same secret values, writes a machine-protected copy for future launches, and preserves the database, the legacy secret file, and legacy keys. It must run on the original Windows installation, because Windows Data Protection cannot decrypt those files after the drive moves to another computer.
+
+If the original computer and its Windows profile are unavailable and the old development data can be discarded, use this recovery command instead:
+
+```powershell
+dotnet run --project RoghtiaSystem_JahidKawa.Server -- --reset-development-data
+```
+
+It moves `.local`, `RoghtiaSystemDatabase.db`, and related SQLite journal files into a timestamped `.roghtia-recovery` backup folder. Start the server normally afterward to create a new empty database and development secrets. The old records remain in the backup but cannot be read without the original database key.
 
 ## Pages and design
 

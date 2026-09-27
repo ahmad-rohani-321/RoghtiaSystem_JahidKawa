@@ -74,6 +74,45 @@ namespace RoghtiaSystem_JahidKawa.Server.Services
             WriteSecretsAtomically(machinePath, CreateMachineProvider(directory).CreateProtector(DevelopmentSecretsPurpose).Protect(JsonSerializer.Serialize(secrets)));
         }
 
+        // Archives inaccessible development-only data without deleting it. The next regular startup creates fresh keys and a new database.
+        public static string ArchiveUnrecoverableDevelopmentData(IWebHostEnvironment environment)
+        {
+            if (!environment.IsDevelopment())
+                throw new InvalidOperationException("Development-data reset is only available in the Development environment.");
+
+            var contentRoot = environment.ContentRootPath;
+            var localDirectory = Path.Combine(contentRoot, ".local");
+            var databasePath = Path.Combine(contentRoot, "RoghtiaSystemDatabase.db");
+            var databaseFiles = new[]
+            {
+                databasePath,
+                databasePath + "-shm",
+                databasePath + "-wal",
+                databasePath + "-journal"
+            };
+            if (!Directory.Exists(localDirectory) && !databaseFiles.Any(File.Exists))
+                throw new InvalidOperationException("No local development secrets or database were found. Nothing was changed.");
+
+            var recoveryRoot = Path.Combine(contentRoot, ".roghtia-recovery");
+            Directory.CreateDirectory(recoveryRoot);
+            var backupDirectory = Path.Combine(recoveryRoot, $"development-data-{DateTimeOffset.UtcNow:yyyyMMddHHmmss}-{Guid.NewGuid():N}");
+            Directory.CreateDirectory(backupDirectory);
+            try
+            {
+                if (Directory.Exists(localDirectory))
+                    Directory.Move(localDirectory, Path.Combine(backupDirectory, ".local"));
+
+                foreach (var databaseFile in databaseFiles.Where(File.Exists))
+                    File.Move(databaseFile, Path.Combine(backupDirectory, Path.GetFileName(databaseFile)));
+
+                return backupDirectory;
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+            {
+                throw new InvalidOperationException($"The local development data could not be fully archived. Close every Roghtia server process and try again. Any files already moved are safely in {backupDirectory}.", exception);
+            }
+        }
+
         private static Dictionary<string, string> LoadDevelopmentSecrets(string contentRoot, bool usesDefaultDatabase)
         {
             var directory = new DirectoryInfo(Path.Combine(contentRoot, ".local"));
@@ -83,7 +122,7 @@ namespace RoghtiaSystem_JahidKawa.Server.Services
             var path = Path.Combine(directory.FullName, MachineSecretsFileName);
             var legacyPath = Path.Combine(directory.FullName, LegacySecretsFileName);
             if (!File.Exists(path) && File.Exists(legacyPath))
-                throw new InvalidOperationException("Legacy development secrets were found. Run `dotnet run -- --migrate-development-secrets` once using the Windows account that created .local/keys, then start the server again. No files or database records were changed.");
+                throw new InvalidOperationException("Legacy development secrets belong to a different Windows installation. To keep the existing database, run `dotnet run -- --migrate-development-secrets` on the original computer and Windows profile. To start fresh on this computer, run `dotnet run -- --reset-development-data`; it archives .local and RoghtiaSystemDatabase.db before creating nothing. No files or database records were changed.");
             if (!File.Exists(path) && usesDefaultDatabase && File.Exists(Path.Combine(contentRoot, "RoghtiaSystemDatabase.db")))
                 throw new InvalidOperationException("Development secrets are missing, but RoghtiaSystemDatabase.db already exists. Restore the matching .local directory or configure Auth:SigningKey and ConnectionStrings:MainDatabase with the original database password. No replacement secrets were generated; the database was not changed.");
 

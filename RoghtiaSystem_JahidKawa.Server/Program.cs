@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -11,8 +12,23 @@ using System.Text;
 using System.Threading.RateLimiting;
 
 var migrateDevelopmentSecrets = args.Contains("--migrate-development-secrets", StringComparer.Ordinal);
-var builder = WebApplication.CreateBuilder(args.Where(argument => argument != "--migrate-development-secrets").ToArray());
+var resetDevelopmentData = args.Contains("--reset-development-data", StringComparer.Ordinal);
+var builder = WebApplication.CreateBuilder(args.Where(argument => argument is not "--migrate-development-secrets" and not "--reset-development-data").ToArray());
 SQLitePCL.Batteries_V2.Init();
+if (resetDevelopmentData)
+{
+    try
+    {
+        var backupPath = AuthOptions.ArchiveUnrecoverableDevelopmentData(builder.Environment);
+        Console.WriteLine($"Development data was archived to {backupPath}. Start the server normally to create a new empty local database and secrets.");
+    }
+    catch (InvalidOperationException exception)
+    {
+        Console.Error.WriteLine($"Development-data reset failed: {exception.Message}");
+        Environment.ExitCode = 1;
+    }
+    return;
+}
 if (migrateDevelopmentSecrets)
 {
     try
@@ -36,6 +52,11 @@ catch (InvalidOperationException exception)
     Environment.ExitCode = 1;
     return;
 }
+var frameworkKeysDirectory = new DirectoryInfo(Path.Combine(builder.Environment.ContentRootPath, ".local", "framework-keys"));
+var dataProtection = builder.Services.AddDataProtection()
+    .PersistKeysToFileSystem(frameworkKeysDirectory)
+    .SetApplicationName("Roghtia.Server");
+if (OperatingSystem.IsWindows()) dataProtection.ProtectKeysWithDpapi(protectToLocalMachine: true);
 builder.Services.AddSingleton(authOptions);
 builder.Services.AddSingleton<PasswordService>();
 builder.Services.AddSingleton<TokenService>();
