@@ -74,6 +74,16 @@ Do not commit signing keys or database passwords. Use HTTPS for production. When
 
 For an existing starter database, supply its original connection string/password. Startup adds normalized usernames, password/token versions, role columns and the doctor-information and medication tables transactionally. It stops on pre-existing normalized duplicate usernames without deleting accounts. Successful legacy ASCII-password logins upgrade their hashes; legacy non-ASCII hashes require a password reset because the starter encoded passwords as ASCII.
 
+### Development startup secrets
+
+Development keeps the JWT signing key and SQLCipher database key in `.local`. Older copies are protected for the Windows account that created them. If startup asks for a migration, run this once from a terminal opened under that original Windows account:
+
+```powershell
+dotnet run --project RoghtiaSystem_JahidKawa.Server -- --migrate-development-secrets
+```
+
+The migration keeps the same secret values, writes a machine-protected copy for future launches, and preserves the database, the legacy secret file, and legacy keys. Do not delete `.local` or `RoghtiaSystemDatabase.db`; if the original Windows account is unavailable, restore a matching backup or configure `Auth:SigningKey` and `ConnectionStrings:MainDatabase` with the original database password.
+
 ## Pages and design
 
 Dashboard, Prescriptions, Patients, Medications, Reports and Settings use the shared RTL navigation. Login and Register remain standalone. Login adds Remember Me; registration has only username and password fields.

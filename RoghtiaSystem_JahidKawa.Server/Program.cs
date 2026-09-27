@@ -10,9 +10,32 @@ using System.Security.Claims;
 using System.Text;
 using System.Threading.RateLimiting;
 
-var builder = WebApplication.CreateBuilder(args);
+var migrateDevelopmentSecrets = args.Contains("--migrate-development-secrets", StringComparer.Ordinal);
+var builder = WebApplication.CreateBuilder(args.Where(argument => argument != "--migrate-development-secrets").ToArray());
 SQLitePCL.Batteries_V2.Init();
-var (authOptions, connectionString) = AuthOptions.Load(builder.Configuration, builder.Environment);
+if (migrateDevelopmentSecrets)
+{
+    try
+    {
+        AuthOptions.MigrateDevelopmentSecrets(builder.Environment);
+        Console.WriteLine("Development secrets were migrated to machine protection. The database and legacy secret files were preserved.");
+    }
+    catch (InvalidOperationException exception)
+    {
+        Console.Error.WriteLine($"Development-secret migration failed: {exception.Message}");
+        Environment.ExitCode = 1;
+    }
+    return;
+}
+AuthOptions authOptions;
+string connectionString;
+try { (authOptions, connectionString) = AuthOptions.Load(builder.Configuration, builder.Environment); }
+catch (InvalidOperationException exception)
+{
+    Console.Error.WriteLine($"Server startup failed: {exception.Message}");
+    Environment.ExitCode = 1;
+    return;
+}
 builder.Services.AddSingleton(authOptions);
 builder.Services.AddSingleton<PasswordService>();
 builder.Services.AddSingleton<TokenService>();
