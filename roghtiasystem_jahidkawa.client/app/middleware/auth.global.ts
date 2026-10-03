@@ -9,7 +9,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
       throw createError({ statusCode: 503, statusMessage: 'د ننوتلو خدمت ته لاسرسی نشته. بیا هڅه وکړئ.' })
     }
   }
-  const publicPage = ['/login', '/register'].includes(to.path)
+  const publicPage = ['/login', '/register', '/reset-password'].includes(to.path)
   if (!auth.isAuthenticated.value && !publicPage) {
     return navigateTo({ path: '/login', query: { redirect: to.fullPath } })
   }

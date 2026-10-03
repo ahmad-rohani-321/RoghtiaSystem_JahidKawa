@@ -37,7 +37,7 @@ const isActive = (to: string) => to === '/' ? route.path === '/' : route.path ==
   z-index: 40;
   inset-inline: 0;
   bottom: calc(22px + env(safe-area-inset-bottom, 0px));
-  width: min(930px, calc(100% - 32px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)));
+  width: min(960px, calc(100% - 32px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)));
   margin-inline: auto;
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
@@ -46,7 +46,7 @@ const isActive = (to: string) => to === '/' ? route.path === '/' : route.path ==
   background: var(--surface);
   border: 1px solid #d9e9ed;
   border-radius: 21px;
-  box-shadow: 0 8px 32px #2b72800d;
+  box-shadow: 0 12px 36px #2b728018;
 }
 .bottom-nav-link {
   min-width: 0;
@@ -79,13 +79,25 @@ const isActive = (to: string) => to === '/' ? route.path === '/' : route.path ==
   border-color: var(--line);
   box-shadow: 0 8px 32px #0003;
 }
-@media (max-width: 860px) {
-  .bottom-nav { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; bottom: calc(12px + env(safe-area-inset-bottom, 0px)); }
-  .bottom-nav-link { gap: 7px; padding-inline: 6px; }
+@media (max-width: 960px) {
+  .bottom-nav { gap: 5px; padding: 7px; bottom: calc(12px + env(safe-area-inset-bottom, 0px)); }
+  .bottom-nav-link { min-height: 64px; flex-direction: column; gap: 3px; padding: 6px 3px; font-size: 0.875rem; line-height: 1.3; text-align: center; }
 }
-@media (max-width: 380px) {
-  .bottom-nav { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .bottom-nav-link { min-height: 46px; }
+@media (max-width: 640px) {
+  .bottom-nav {
+    width: calc(100% - 24px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px));
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    gap: 4px;
+    bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+    border-radius: 18px;
+  }
+  .bottom-nav-link { grid-column: span 3; min-height: 56px; padding: 5px 2px; }
+  .bottom-nav-link:nth-child(n + 5) { grid-column: span 4; }
+  .bottom-nav-link > .iconify { width: 20px; height: 20px; }
+}
+@media (max-width: 360px) {
+  .bottom-nav { width: calc(100% - 16px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)); padding: 6px; }
+  .bottom-nav-link { font-size: 0.8125rem; }
 }
 @media (prefers-reduced-motion: reduce) {
   .bottom-nav-link { transition: none; }

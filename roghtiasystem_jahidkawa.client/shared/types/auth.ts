@@ -17,5 +17,6 @@ export interface AuthTokenResponse extends AuthSession {
 export interface AuthCredentials {
   userName: string
   password: string
+  pinCode?: string
   rememberMe?: boolean
 }

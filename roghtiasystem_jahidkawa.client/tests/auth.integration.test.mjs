@@ -16,6 +16,7 @@ const serverDll = resolve(serverRoot, 'bin/Debug/net10.0/RoghtiaSystem_JahidKawa
 const processes = []
 const signingKey = randomBytes(64).toString('base64')
 const password = 'پټنوم-' + randomBytes(12).toString('hex')
+const pinCode = '7034182659'
 let temporaryRoot, api, web, secureWeb, apiProcess, apiPort, persistentCookie
 
 async function freePort() {
@@ -102,9 +103,9 @@ const doctorFields = {
 }
 const tinyPng = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aRCsAAAAASUVORK5CYII=', 'base64')
 
-async function account(label, rememberMe = false) {
+async function account(label, rememberMe = false, recoveryPIN = pinCode) {
   const userName = `${label}-${randomBytes(5).toString('hex')}`
-  const registered = await post(api, '/api/auth/register', { userName, password })
+  const registered = await post(api, '/api/auth/register', { userName, password, pinCode: recoveryPIN })
   assert.equal(registered.status, 200)
   const { user, token } = await registered.json()
   const login = await post(web, '/api/auth/login', { userName, password, rememberMe })
@@ -227,25 +228,27 @@ test('protected pages redirect to login; public forms remain standalone', async 
     assert.equal(response.status, 302, path)
     assert.match(response.headers.get('location'), /^\/login\?redirect=/)
   }
-  for (const path of ['/login', '/register']) {
+  for (const path of ['/login', '/register', '/reset-password']) {
     const response = await fetch(web + path)
     assert.equal(response.status, 200)
     const html = await response.text()
     assert.ok(!html.includes('bottom-nav'))
     assert.ok(!html.includes('class="topbar"'))
-    assert.ok(html.includes(path === '/login' ? 'current-password' : 'new-password'))
+    assert.ok(html.includes(path === '/login' ? 'current-password' : path === '/register' ? 'new-password' : 'pinCode'))
     assert.equal(html.includes('ما په یاد وساتئ'), path === '/login')
+    if (path === '/login') assert.ok(html.includes('href="/reset-password"'))
   }
 })
 
 test('registration creates a user, grants no elevated role, and keeps JWT out of frontend response', async () => {
-  const response = await post(web, '/api/auth/register', { userName: '  test-user  ', password, role: 'Admin', rememberMe: true })
+  const response = await post(web, '/api/auth/register', { userName: '  test-user  ', password, pinCode, role: 'Admin', rememberMe: true })
   assert.equal(response.status, 200)
   const data = await response.json()
   assert.equal(data.user.userName, 'test-user')
   assert.deepEqual(data.user.roles, ['User'])
   assert.deepEqual(data.user.permissions, [])
   assert.equal('token' in data, false)
+  assert.equal('pinCode' in data.user, false)
   const cookie = response.headers.get('set-cookie')
   assert.match(cookie, /HttpOnly/i)
   assert.match(cookie, /SameSite=Strict/i)
@@ -258,15 +261,15 @@ test('registration creates a user, grants no elevated role, and keeps JWT out of
 
 test('server prevents duplicate, case-equivalent and Unicode-equivalent usernames', async (t) => {
   for (const userName of ['test-user', ' TEST-USER ']) {
-    const response = await post(api, '/api/auth/register', { userName, password })
+    const response = await post(api, '/api/auth/register', { userName, password, pinCode })
     assert.equal(response.status, 409)
     assert.equal((await response.json()).code, 'USERNAME_TAKEN')
   }
   t.diagnostic('Case-equivalent duplicates rejected')
-  assert.equal((await post(api, '/api/auth/register', { userName: 'Caf\u00e9', password })).status, 200)
-  assert.equal((await post(api, '/api/auth/register', { userName: 'Cafe\u0301', password })).status, 409)
+  assert.equal((await post(api, '/api/auth/register', { userName: 'Caf\u00e9', password, pinCode })).status, 200)
+  assert.equal((await post(api, '/api/auth/register', { userName: 'Cafe\u0301', password, pinCode })).status, 409)
   t.diagnostic('Unicode-equivalent duplicates rejected')
-  const duplicates = await Promise.all(Array.from({ length: 4 }, () => post(api, '/api/auth/register', { userName: 'same-concurrent-user', password }))).catch(error => {
+  const duplicates = await Promise.all(Array.from({ length: 4 }, () => post(api, '/api/auth/register', { userName: 'same-concurrent-user', password, pinCode }))).catch(error => {
     t.diagnostic(apiProcess.getTestOutput())
     throw error
   })
@@ -334,6 +337,51 @@ test('mutations reject cross-site requests and malformed credentials', async () 
   assert.equal((await post(api, '/api/auth/register', { userName: 'short-password', password: 'short' })).status, 400)
 })
 
+test('PIN registration validation and password reset stay scoped to the matching username', async () => {
+  for (const invalid of [undefined, '', '12345', '12345678901', '12345a', '۱۲۳۴۵۶']) {
+    const userName = `invalid-pin-${randomBytes(3).toString('hex')}`
+    for (const origin of [api, web]) {
+      const response = await post(origin, '/api/auth/register', { userName, password, pinCode: invalid })
+      assert.equal(response.status, 400, `${origin}: ${invalid}`)
+    }
+  }
+  const user = await account('pin-reset')
+  const other = await account('pin-other', false, '8426193075')
+  const invalidCases = [
+    { userName: 'unknown-reset-user', pinCode },
+    { userName: user.user.userName, pinCode: '0000000000' },
+    { userName: other.user.userName, pinCode }
+  ]
+  for (const origin of [api, web]) {
+    for (const body of invalidCases) {
+      const response = await post(origin, '/api/auth/verify-pin', body)
+      assert.equal(response.status, 401)
+      const error = await response.json()
+      assert.equal(origin === api ? error.code : error.data.code, 'INVALID_PIN')
+    }
+    assert.equal((await post(origin, '/api/auth/verify-pin', { userName: user.user.userName.toUpperCase(), pinCode })).status, 204)
+  }
+  const newPassword = 'new-' + randomBytes(16).toString('hex')
+  const wrong = await post(web, '/api/auth/reset-password', { userName: user.user.userName, pinCode: '0000000000', newPassword })
+  assert.equal(wrong.status, 401)
+  assert.equal((await post(api, '/api/auth/login', { userName: user.user.userName, password })).status, 200)
+  assert.equal((await post(web, '/api/auth/reset-password', { userName: user.user.userName, pinCode, newPassword })).status, 204)
+  assert.equal((await post(api, '/api/auth/login', { userName: user.user.userName, password })).status, 401)
+  assert.equal((await post(web, '/api/auth/login', { userName: user.user.userName, password: newPassword })).status, 200)
+  assert.equal((await fetch(api + '/api/auth/me', { headers: { authorization: `Bearer ${user.token}` } })).status, 401)
+  assert.equal((await fetch(web + '/api/auth/me', { headers: { cookie: user.cookie } })).status, 401)
+  assert.equal((await post(api, '/api/auth/login', { userName: other.user.userName, password })).status, 200)
+})
+
+test('repeated wrong PIN attempts temporarily block reset for that account', async () => {
+  const user = await account('pin-lockout')
+  for (let attempt = 0; attempt < 5; attempt++) {
+    assert.equal((await post(api, '/api/auth/verify-pin', { userName: user.user.userName, pinCode: '0000000000' })).status, 401)
+  }
+  assert.equal((await post(api, '/api/auth/verify-pin', { userName: user.user.userName, pinCode })).status, 401)
+  assert.equal((await post(api, '/api/auth/login', { userName: user.user.userName, password })).status, 200)
+})
+
 test('authenticated SSR uses actual identity without leaking JWT and marks Reports active', async () => {
   const response = await fetch(web + '/reports', { headers: { cookie: persistentCookie } })
   assert.equal(response.status, 200)
@@ -375,6 +423,10 @@ test('legacy user schema upgrades without deleting accounts; password rehashes o
   const response = await post(`http://127.0.0.1:${port}`, '/api/auth/login', { userName: 'legacyuser', password: legacyPassword })
   assert.equal(response.status, 200)
   const { token } = await response.json()
+  assert.equal((await post(`http://127.0.0.1:${port}`, '/api/auth/verify-pin', { userName: 'legacyuser', pinCode })).status, 401)
+  assert.equal((await post(`http://127.0.0.1:${port}`, '/api/auth/set-pin', { currentPassword: 'wrong-password', pinCode }, { headers: { authorization: `Bearer ${token}` } })).status, 400)
+  assert.equal((await post(`http://127.0.0.1:${port}`, '/api/auth/set-pin', { currentPassword: legacyPassword, pinCode }, { headers: { authorization: `Bearer ${token}` } })).status, 204)
+  assert.equal((await post(`http://127.0.0.1:${port}`, '/api/auth/verify-pin', { userName: 'legacyuser', pinCode })).status, 204)
   const information = await fetch(`http://127.0.0.1:${port}/api/doctor-information`, { headers: { authorization: `Bearer ${token}` } })
   assert.equal(information.status, 200, 'Doctor information schema is added to an existing database')
   assertDoctorDefaults(await information.json())
@@ -393,6 +445,8 @@ test('legacy user schema upgrades without deleting accounts; password rehashes o
   assert.equal(user.NormalizedUserName, 'LEGACYUSER')
   assert.equal(user.PasswordVersion, 1)
   assert.equal(user.TokenVersion, 0)
+  assert.notEqual(user.PINCode, pinCode)
+  assert.ok(user.PINCode.length > 30)
   assert.notDeepEqual(Buffer.from(user.PasswordHash), hash)
   assert.equal(upgraded.prepare('SELECT COUNT(*) AS count FROM Users').get().count, 1)
   assert.equal(upgraded.prepare('SELECT COUNT(*) AS count FROM Medications').get().count, 1)
@@ -417,7 +471,7 @@ test('default development secrets preserve authentication across restarts', asyn
   const env = apiEnvironment('', { Auth__SigningKey: '', ConnectionStrings__MainDatabase: '' })
   const launch = () => start('dotnet', [serverDll, '--urls', origin, '--contentRoot', contentRoot], serverRoot, env, origin + '/api/health')
   let child = await launch()
-  const registered = await post(origin, '/api/auth/register', { userName: 'development-user', password })
+  const registered = await post(origin, '/api/auth/register', { userName: 'development-user', password, pinCode })
   assert.equal(registered.status, 200)
   const { token } = await registered.json()
   await stop(child)

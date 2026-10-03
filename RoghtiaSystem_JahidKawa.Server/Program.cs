@@ -59,6 +59,7 @@ var dataProtection = builder.Services.AddDataProtection()
 if (OperatingSystem.IsWindows()) dataProtection.ProtectKeysWithDpapi(protectToLocalMachine: true);
 builder.Services.AddSingleton(authOptions);
 builder.Services.AddSingleton<PasswordService>();
+builder.Services.AddSingleton<PINCodeService>();
 builder.Services.AddSingleton<TokenService>();
 builder.Services.AddControllers().ConfigureApiBehaviorOptions(options =>
 {

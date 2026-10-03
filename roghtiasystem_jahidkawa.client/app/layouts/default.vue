@@ -4,6 +4,7 @@ const auth = useAuth()
 const toast = useToast()
 const doctor = useDoctorInformation()
 const passwordOpen = ref(false)
+const pinOpen = ref(false)
 const username = computed(() => auth.user.value?.userName || '')
 const displayName = computed(() => doctor.information.value?.doctorNamePashto || username.value)
 const initials = computed(() => displayName.value.slice(0, 2))
@@ -13,7 +14,7 @@ async function logout() {
   try { await auth.logout() }
   catch { toast.add({ title: 'وتل ونه شول', description: 'مهرباني وکړئ بیا هڅه وکړئ.', color: 'error' }) }
 }
-const menu = computed(() => [[{ type: 'label', label: displayName.value, description: username.value }], [{ label: 'تنظیمات', icon: 'i-lucide-settings-2', to: '/settings' }, { label: 'د پټنوم بدلول', icon: 'i-lucide-key-round', onSelect: () => { passwordOpen.value = true } }], [{ label: 'له حسابه وتل', icon: 'i-lucide-log-out', onSelect: logout }]])
+const menu = computed(() => [[{ type: 'label', label: displayName.value, description: username.value }], [{ label: 'تنظیمات', icon: 'i-lucide-settings-2', to: '/settings' }, { label: 'د پټنوم بدلول', icon: 'i-lucide-key-round', onSelect: () => { passwordOpen.value = true } }, { label: 'د PIN کوډ بیا تنظیمول', icon: 'i-lucide-shield-check', onSelect: () => { pinOpen.value = true } }], [{ label: 'له حسابه وتل', icon: 'i-lucide-log-out', onSelect: logout }]])
 </script>
 <template>
   <div class="app-shell">
@@ -28,6 +29,7 @@ const menu = computed(() => [[{ type: 'label', label: displayName.value, descrip
     </header>
     <main id="main" class="main-container"><slot /></main>
     <PasswordChangeModal v-model:open="passwordOpen" />
+    <PINCodeModal v-model:open="pinOpen" />
     <BottomNavigation />
   </div>
 </template>
@@ -36,11 +38,18 @@ const menu = computed(() => [[{ type: 'label', label: displayName.value, descrip
 .profile-copy { min-width: 0; max-width: 200px; }
 .profile-copy strong, .profile-copy small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .profile .avatar { flex-shrink: 0; }
-.main-container { padding-bottom: calc(125px + env(safe-area-inset-bottom, 0px)); }
-@media (max-width: 860px) {
-  .main-container { padding-bottom: calc(230px + env(safe-area-inset-bottom, 0px)); }
+.app-shell .main-container { padding-bottom: calc(120px + env(safe-area-inset-bottom, 0px)); }
+@media (max-width: 960px) {
+  .app-shell .main-container { padding-bottom: calc(116px + env(safe-area-inset-bottom, 0px)); }
+}
+@media (max-width: 640px) {
+  .app-shell .main-container { padding-bottom: calc(160px + env(safe-area-inset-bottom, 0px)); }
+  .topbar { min-width: 0; }
+  .header-actions { min-width: max-content; }
 }
 @media (max-width: 380px) {
-  .main-container { padding-bottom: calc(270px + env(safe-area-inset-bottom, 0px)); }
+  .brand small { display: none; }
+  .brand strong { font-size: 1.375rem; }
+  .brand-icon { width: 36px; height: 36px; }
 }
 </style>

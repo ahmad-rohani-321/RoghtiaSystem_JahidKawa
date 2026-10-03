@@ -12,6 +12,7 @@ const loading = ref(true)
 const loaded = ref(false)
 const pending = ref(false)
 const resetOpen = ref(false)
+const pinOpen = ref(false)
 const serviceMessage = ref('')
 const revision = ref(0)
 const fields = [
@@ -213,6 +214,14 @@ onMounted(loadInformation)
         </div>
       </template>
     </UModal>
+    <section class="panel pin-settings" aria-labelledby="pin-settings-title">
+      <header class="settings-section-heading">
+        <span class="settings-section-icon" aria-hidden="true"><UIcon name="i-lucide-key-round" /></span>
+        <div><h2 id="pin-settings-title">د پټنوم بیا تنظیمولو PIN</h2><p>د پټنوم د هېرېدو لپاره PIN وټاکئ یا یې بدل کړئ. پخواني حسابونه هم دلته PIN ټاکلی شي.</p></div>
+      </header>
+      <div class="pin-settings-action"><UButton type="button" size="lg" icon="i-lucide-shield-check" @click="pinOpen = true">PIN ټاکل یا بدلول</UButton></div>
+    </section>
+    <PINCodeModal v-model:open="pinOpen" />
   </section>
 </template>
 
@@ -220,6 +229,8 @@ onMounted(loadInformation)
 .settings-page { width: 100%; min-width: 0; max-width: 1100px; margin-inline: auto; }
 .settings-page .page-heading p { font-size: 1rem; }
 .doctor-settings { min-width: 0; border-radius: 16px; }
+.pin-settings { min-width: 0; margin-top: 22px; border-radius: 16px; }
+.pin-settings-action { padding: 22px 30px; }
 .settings-section-heading { display: flex; align-items: flex-start; gap: 15px; padding: 26px 30px; border-bottom: 1px solid var(--line); }
 .settings-section-heading > div { min-width: 0; }
 .settings-section-icon { display: grid; place-items: center; flex-shrink: 0; width: 46px; height: 46px; border-radius: 13px; color: var(--teal); background: var(--soft); }
@@ -246,6 +257,7 @@ onMounted(loadInformation)
 .settings-state > .iconify { width: 30px; height: 30px; color: var(--teal); }
 .settings-state p { max-width: 520px; margin: 0; font-size: 1rem; line-height: 1.9; }
 @media (max-width: 700px) {
+  .pin-settings-action { padding: 20px; }
   .settings-section-heading { padding: 22px 20px; }
   .doctor-form { padding: 23px 20px 0; }
   .settings-text-grid, .settings-images-grid { grid-template-columns: minmax(0, 1fr); }
@@ -254,6 +266,7 @@ onMounted(loadInformation)
   .settings-buttons > * { flex: 1 1 170px; justify-content: center; }
 }
 @media (max-width: 480px) {
+  .pin-settings-action { padding: 18px 16px; }
   .settings-section-heading { padding: 20px 16px; gap: 12px; }
   .doctor-form { padding: 22px 16px 0; }
   .settings-actions { margin-inline: -16px; padding: 20px 16px; }

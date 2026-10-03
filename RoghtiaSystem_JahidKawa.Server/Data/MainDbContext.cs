@@ -34,6 +34,7 @@ namespace RoghtiaSystem_JahidKawa.Server.Data
                 user.Property(u => u.NormalizedUserName).IsRequired().HasMaxLength(64);
                 user.HasIndex(u => u.NormalizedUserName).IsUnique();
                 user.Property(u => u.Role).IsRequired().HasMaxLength(32).HasDefaultValue("User");
+                user.Property(u => u.PINCode).IsRequired().HasMaxLength(512).HasDefaultValue(string.Empty);
                 user.Property(u => u.TokenVersion).IsConcurrencyToken();
             });
             modelBuilder.Entity<DoctorInformation>(doctor =>

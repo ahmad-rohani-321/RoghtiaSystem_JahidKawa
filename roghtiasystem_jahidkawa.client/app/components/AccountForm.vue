@@ -2,7 +2,7 @@
 const props = defineProps({ mode: { type: String, default: 'login' } })
 const isRegister = computed(() => props.mode === 'register')
 
-const credentials = reactive({ username: '', password: '' })
+const credentials = reactive({ username: '', password: '', pinCode: '' })
 const showPassword = ref(false)
 const serviceMessage = ref('')
 const rememberMe = ref(false)
@@ -17,6 +17,7 @@ function validate(state) {
   else if (isRegister.value && state.password.length < 8) errors.push({ name: 'password', message: 'پټنوم باید لږ تر لږه 8 توري ولري.' })
   if (state.username?.trim().length > 64) errors.push({ name: 'username', message: 'کارن نوم باید تر 64 تورو ډېر نه وي.' })
   if (state.password?.length > 128) errors.push({ name: 'password', message: 'پټنوم باید تر 128 تورو ډېر نه وي.' })
+  if (isRegister.value && !/^[0-9]{6,10}$/.test(state.pinCode)) errors.push({ name: 'pinCode', message: 'PIN باید له 6 تر 10 انګلیسي شمېرې ولري.' })
   return errors
 }
 
@@ -26,9 +27,11 @@ async function submit() {
     await auth.authenticate(isRegister.value ? 'register' : 'login', {
       userName: credentials.username.trim(),
       password: credentials.password,
+      ...(isRegister.value ? { pinCode: credentials.pinCode } : {}),
       ...(!isRegister.value ? { rememberMe: rememberMe.value } : {})
     })
     credentials.password = ''
+    credentials.pinCode = ''
     // Accept only a local application path, never an external redirect.
     const redirect = route.query.redirect
     const destination = typeof redirect === 'string' && /^\/(?!\/)/.test(redirect) && !redirect.includes('\\') && !/^\/(login|register)(?:[/?#]|$)/.test(redirect) ? redirect : '/'
@@ -38,7 +41,7 @@ async function submit() {
     const messages = {
       INVALID_CREDENTIALS: 'کارن نوم یا پټنوم ناسم دی.',
       USERNAME_TAKEN: 'دا کارن نوم مخکې کارول شوی دی. بل نوم وټاکئ.',
-      VALIDATION_ERROR: 'کارن نوم او پټنوم وګورئ او بیا هڅه وکړئ.',
+      VALIDATION_ERROR: 'کارن نوم، پټنوم او PIN وګورئ او بیا هڅه وکړئ.',
       TOO_MANY_REQUESTS: 'ډېرې هڅې شوې دي. لږ وروسته بیا هڅه وکړئ.',
       INVALID_ORIGIN: 'غوښتنه ونه منل شوه. پاڼه تازه کړئ او بیا هڅه وکړئ.'
     }
@@ -60,7 +63,7 @@ watch(credentials, () => { serviceMessage.value = '' })
         <span class="brand-icon login-logo" aria-hidden="true"><UIcon name="i-lucide-heart-pulse" /></span>
         <span class="login-brand">روغتیا<span>.</span></span>
         <h1 id="login-title">{{ isRegister ? 'نوی کارن جوړ کړئ' : 'خپل حساب ته ننوځئ' }}</h1>
-        <p>{{ isRegister ? 'د نوي حساب لپاره کارن نوم او پټنوم وټاکئ.' : 'د ننوتلو لپاره خپل کارن نوم او پټنوم ولیکئ.' }}</p>
+        <p>{{ isRegister ? 'د نوي حساب لپاره کارن نوم، پټنوم او د بیا تنظیمولو PIN وټاکئ.' : 'د ننوتلو لپاره خپل کارن نوم او پټنوم ولیکئ.' }}</p>
       </div>
 
       <UForm :state="credentials" :validate="validate" :disabled="pending" novalidate class="login-form" @submit="submit" @error="focusError">
@@ -76,7 +79,12 @@ watch(credentials, () => { serviceMessage.value = '' })
           </UInput>
         </UFormField>
 
+        <UFormField v-if="isRegister" label="د پټنوم بیا تنظیمولو PIN" name="pinCode" required help="له 6 تر 10 انګلیسي شمېرې. دا PIN په خوندي ځای کې وساتئ.">
+          <UInput v-model="credentials.pinCode" name="pinCode" type="password" inputmode="numeric" autocomplete="off" pattern="[0-9]*" maxlength="10" placeholder="6–10 شمېرې" icon="i-lucide-key-round" size="xl" class="w-full" :ui="{ base: 'login-input' }" @update:model-value="value => credentials.pinCode = String(value || '').replace(/[^0-9]/g, '').slice(0, 10)" />
+        </UFormField>
+
         <UCheckbox v-if="!isRegister" v-model="rememberMe" label="ما په یاد وساتئ" name="rememberMe" />
+        <NuxtLink v-if="!isRegister" to="/reset-password" class="forgot-link">پټنوم مو هېر شوی؟</NuxtLink>
         <p v-if="serviceMessage" class="login-message" role="alert">{{ serviceMessage }}</p>
         <UButton type="submit" size="xl" block :loading="pending" :disabled="pending" trailing-icon="i-lucide-arrow-left" class="login-submit">{{ isRegister ? 'کارن جوړول' : 'ننوتل' }}</UButton>
       </UForm>
@@ -118,6 +126,8 @@ watch(credentials, () => { serviceMessage.value = '' })
 .login-message { color: var(--ink); background: var(--soft); padding: 12px 14px; border-radius: 9px; font-size: 0.875rem; line-height: 2; overflow-wrap: anywhere; }
 .login-switch { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin: 24px 0 0; color: var(--muted); font-size: 0.875rem; }
 .login-switch a { color: var(--teal); font-weight: 600; text-decoration: underline; text-underline-offset: 4px; }
+.forgot-link { align-self: flex-start; color: var(--teal); font-size: 0.9375rem; font-weight: 600; text-decoration: underline; text-underline-offset: 4px; }
+.forgot-link:focus-visible { outline: 2px solid var(--teal); outline-offset: 4px; border-radius: 3px; }
 @media (max-width: 480px) {
   .login-page { padding: max(24px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left)); }
   .login-card { padding: 28px 20px; }

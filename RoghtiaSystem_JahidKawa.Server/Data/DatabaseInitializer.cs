@@ -26,6 +26,9 @@ namespace RoghtiaSystem_JahidKawa.Server.Data
                 if (!columns.Contains("NormalizedUserName")) await ExecuteAsync(connection, transaction, "ALTER TABLE Users ADD COLUMN NormalizedUserName TEXT");
                 if (!columns.Contains("PasswordVersion")) await ExecuteAsync(connection, transaction, "ALTER TABLE Users ADD COLUMN PasswordVersion INTEGER NOT NULL DEFAULT 0");
                 if (!columns.Contains("TokenVersion")) await ExecuteAsync(connection, transaction, "ALTER TABLE Users ADD COLUMN TokenVersion INTEGER NOT NULL DEFAULT 0");
+                if (!columns.Contains("PINCode")) await ExecuteAsync(connection, transaction, "ALTER TABLE Users ADD COLUMN PINCode TEXT NOT NULL DEFAULT ''");
+                if (!columns.Contains("PINFailedAttempts")) await ExecuteAsync(connection, transaction, "ALTER TABLE Users ADD COLUMN PINFailedAttempts INTEGER NOT NULL DEFAULT 0");
+                if (!columns.Contains("PINLockedUntilUtc")) await ExecuteAsync(connection, transaction, "ALTER TABLE Users ADD COLUMN PINLockedUntilUtc TEXT NULL");
                 if (!columns.Contains("Role")) await ExecuteAsync(connection, transaction, "ALTER TABLE Users ADD COLUMN Role TEXT NOT NULL DEFAULT 'User'");
 
                 var users = new List<(long Id, string Name)>();

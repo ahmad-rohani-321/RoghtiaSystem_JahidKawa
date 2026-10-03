@@ -23,11 +23,12 @@ Open http://localhost:64053/register to create an account, or http://localhost:6
 ## Authentication
 
 - Login submits username, password and Remember Me to `POST /api/auth/login`.
-- Registration submits username and password to `POST /api/auth/register` and starts a session.
+- Registration submits username, password and a required 6–10 digit recovery PIN to `POST /api/auth/register` and starts a session. The `PINCode` user property stores a salted hash, not the entered digits.
 - The Nuxt server forwards these requests to ASP.NET and places the returned JWT in an HttpOnly, SameSite=Strict cookie. Browser JavaScript never receives or stores the token.
 - Remember Me creates a persistent cookie valid for up to 30 days. Without it, the cookie has no persistence attributes and lasts for the browser session; its token expires after 24 hours. Browsers with session restoration may restore session cookies according to their own settings.
 - `GET /api/auth/me` verifies the token on the API and returns the current user. Protected pages verify the session before rendering. Logout clears the cookie.
 - Usernames are trimmed, Unicode-normalized and compared without case sensitivity. A unique database index handles concurrent duplicate registrations. New passwords use PBKDF2 with a per-password salt.
+- The login page links to `/reset-password`. The page checks username and PIN, then asks for a new password. `POST /api/auth/reset-password` checks the same PIN again, changes only that user's password and invalidates all existing sessions. Five wrong PIN attempts temporarily lock PIN reset for that account for 15 minutes; the auth rate limiter also applies. Incorrect usernames and PINs receive the same error. Existing users can set their first PIN in Settings by providing their current password.
 - All new users receive the `User` role. API authorization defaults to requiring a valid token; future role restrictions can use `[Authorize(Roles = "...")]`. The frontend exposes role/permission helpers for presentation, while enforcement stays on the server.
 - Auth requests include a same-origin mutation header; responses and authenticated HTML are not cached.
 
@@ -39,7 +40,7 @@ Settings loads the signed-in user's doctor information and provides Pashto/Engli
 
 `/api/doctor-information` supports GET, multipart POST (create), PUT (update), and DELETE. `POST /api/doctor-information/reset` returns the default profile. Ownership comes exclusively from the validated JWT user ID; request fields cannot select another user. PNG/JPEG/WebP uploads are checked against their signatures and limited to 2 MiB each (7 MiB total request). Images are stored as blobs in the existing encrypted database and served through authenticated, non-cached media routes; they are never placed in public storage.
 
-The account dropdown opens the password-change form. `POST /api/auth/change-password` verifies the current password, hashes the new password, and increments the user's token version. All existing sessions, including remembered sessions, become invalid; the current cookie is cleared and the user signs in with the new password. This affects only the authenticated user.
+The account dropdown opens the password-change form and the PIN reset form. `POST /api/auth/change-password` verifies the current password, hashes the new password, and increments the user's token version. All existing sessions, including remembered sessions, become invalid; the current cookie is cleared and the user signs in with the new password. `POST /api/auth/set-pin` requires the current password, validates the new 6–10 digit PIN and replaces only the signed-in user's hashed PIN. Settings offers the same PIN form for existing accounts.
 
 ## Medications
 
@@ -72,7 +73,7 @@ Deploy the Nuxt `.output` Node application alongside the ASP.NET API. Authentica
 
 Do not commit signing keys or database passwords. Use HTTPS for production. When the API sits behind Nuxt, its IP rate limit applies to the Nuxt peer; configure the deployment's trusted ingress rate limiting and size this limit for the clinic. Reverse proxies must preserve the public host/protocol for origin checks.
 
-For an existing starter database, supply its original connection string/password. Startup adds normalized usernames, password/token versions, role columns and the doctor-information and medication tables transactionally. It stops on pre-existing normalized duplicate usernames without deleting accounts. Successful legacy ASCII-password logins upgrade their hashes; legacy non-ASCII hashes require a password reset because the starter encoded passwords as ASCII.
+For an existing starter database, supply its original connection string/password. Startup adds normalized usernames, password/token versions, role and PIN columns and the doctor-information and medication tables transactionally. Existing accounts start without a PIN and can set one in Settings after logging in. It stops on pre-existing normalized duplicate usernames without deleting accounts. Successful legacy ASCII-password logins upgrade their hashes; legacy non-ASCII hashes require administrator-assisted recovery if no PIN was previously set because the starter encoded passwords as ASCII.
 
 ### Development startup secrets
 
@@ -94,7 +95,7 @@ It moves `.local`, `RoghtiaSystemDatabase.db`, and related SQLite journal files 
 
 ## Pages and design
 
-Dashboard, Prescriptions, Patients, Medications, Reports and Settings use the shared RTL navigation. Login and Register remain standalone. Login adds Remember Me; registration has only username and password fields.
+Dashboard, Prescriptions, Patients, Medications, Reports and Settings use the shared RTL navigation. Login, Register and Reset Password remain standalone. Login adds Remember Me; registration collects username, password and recovery PIN.
 
 The dashboard uses synthetic data. Clinical records, clinical APIs and audit trails remain future work. Calendar calculations remain Jalali, with exact Pashto month names and compact Persian weekday labels. Both light/dark modes and responsive typography are retained.
 

@@ -22,13 +22,14 @@ export function readAuthCredentials(value: unknown, register = false): AuthCrede
   if (!body || typeof body.userName !== 'string' || typeof body.password !== 'string' ||
       !body.userName.trim() || body.userName.trim().length > 64 ||
       body.password.length < (register ? 8 : 1) || body.password.length > 128 ||
+      (register && (typeof body.pinCode !== 'string' || !/^[0-9]{6,10}$/.test(body.pinCode))) ||
       (body.rememberMe !== undefined && typeof body.rememberMe !== 'boolean')) {
     throw createError({ statusCode: 400, data: { code: 'VALIDATION_ERROR' } })
   }
-  return { userName: body.userName.trim(), password: body.password, rememberMe: register ? false : body.rememberMe === true }
+  return { userName: body.userName.trim(), password: body.password, ...(register ? { pinCode: body.pinCode } : { rememberMe: body.rememberMe === true }) }
 }
 
-export async function requestAuthApi<T>(event: H3Event, path: 'login' | 'register' | 'me', options: { body?: AuthCredentials, token?: string } = {}) {
+export async function requestAuthApi<T>(event: H3Event, path: 'login' | 'register' | 'me' | 'verify-pin' | 'reset-password', options: { body?: object, token?: string } = {}): Promise<T> {
   preventAuthCaching(event)
   const config = useRuntimeConfig(event)
   try {
@@ -46,7 +47,7 @@ export async function requestAuthApi<T>(event: H3Event, path: 'login' | 'registe
     const status = failure.statusCode ?? 503
     if (path === 'me' && status === 401) clearAuthCookie(event)
     const publicStatus = [400, 401, 403, 409, 429].includes(status) ? status : 503
-    const codes: Record<number, string> = { 400: 'VALIDATION_ERROR', 401: path === 'me' ? 'UNAUTHENTICATED' : 'INVALID_CREDENTIALS', 403: 'FORBIDDEN', 409: 'USERNAME_TAKEN', 429: 'TOO_MANY_REQUESTS', 503: 'SERVICE_UNAVAILABLE' }
+    const codes: Record<number, string> = { 400: 'VALIDATION_ERROR', 401: path === 'me' ? 'UNAUTHENTICATED' : path === 'verify-pin' || path === 'reset-password' ? 'INVALID_PIN' : 'INVALID_CREDENTIALS', 403: 'FORBIDDEN', 409: path === 'reset-password' ? 'RESET_CONFLICT' : 'USERNAME_TAKEN', 429: 'TOO_MANY_REQUESTS', 503: 'SERVICE_UNAVAILABLE' }
     throw createError({ statusCode: publicStatus, data: { code: codes[publicStatus] } })
   }
 }

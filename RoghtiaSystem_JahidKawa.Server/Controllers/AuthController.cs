@@ -14,7 +14,7 @@ namespace RoghtiaSystem_JahidKawa.Server.Controllers
     [Route("api/auth")]
     [ApiController]
     [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
-    public class AuthController(MainDbContext context, PasswordService passwords, TokenService tokens) : ControllerBase
+    public class AuthController(MainDbContext context, PasswordService passwords, PINCodeService pins, TokenService tokens) : ControllerBase
     {
         [AllowAnonymous]
         [HttpPost("login")]
@@ -38,15 +38,16 @@ namespace RoghtiaSystem_JahidKawa.Server.Controllers
         [AllowAnonymous]
         [HttpPost("register")]
         [EnableRateLimiting("auth")]
-        public async Task<IActionResult> Register([FromBody] Login request, CancellationToken cancellationToken)
+        public async Task<IActionResult> Register([FromBody] Register request, CancellationToken cancellationToken)
         {
-            if (!UserNames.IsValid(request.UserName) || request.Password.Length < 8)
-                return BadRequest(new AuthError("VALIDATION_ERROR", "کارن نوم او پټنوم وګورئ. پټنوم باید لږ تر لږه ۸ توري ولري."));
+            if (!UserNames.IsValid(request.UserName) || !PINCodeService.IsValid(request.PINCode))
+                return BadRequest(new AuthError("VALIDATION_ERROR", "کارن نوم، پټنوم او 6 تر 10 شمېره‌ییز PIN وګورئ."));
             var normalizedName = UserNames.Normalize(request.UserName);
             if (await context.Users.AnyAsync(u => u.NormalizedUserName == normalizedName, cancellationToken))
                 return Conflict(new AuthError("USERNAME_TAKEN", "دا کارن نوم مخکې کارول شوی دی."));
             var user = new Users { UserName = UserNames.Clean(request.UserName), NormalizedUserName = normalizedName };
             passwords.SetPassword(user, request.Password);
+            pins.Set(user, request.PINCode);
             context.Users.Add(user);
             try { await context.SaveChangesAsync(cancellationToken); }
             catch (DbUpdateException ex) when (ex.InnerException is SqliteException { SqliteErrorCode: 19 })
@@ -55,6 +56,92 @@ namespace RoghtiaSystem_JahidKawa.Server.Controllers
                 return Conflict(new AuthError("USERNAME_TAKEN", "دا کارن نوم مخکې کارول شوی دی."));
             }
             return Ok(tokens.Create(user, false));
+        }
+
+        [AllowAnonymous]
+        [HttpPost("verify-pin")]
+        [EnableRateLimiting("auth")]
+        public async Task<IActionResult> VerifyPIN([FromBody] VerifyPINCode request, CancellationToken cancellationToken)
+        {
+            if (!UserNames.IsValid(request.UserName) || !PINCodeService.IsValid(request.PINCode))
+                return BadRequest(new AuthError("VALIDATION_ERROR", "کارن نوم او PIN وګورئ."));
+            var user = await context.Users.SingleOrDefaultAsync(u => u.NormalizedUserName == UserNames.Normalize(request.UserName), cancellationToken);
+            if (!await CheckPINAsync(user, request.PINCode, cancellationToken))
+                return Unauthorized(new AuthError("INVALID_PIN", "کارن نوم یا PIN ناسم دی."));
+            return NoContent();
+        }
+
+        [AllowAnonymous]
+        [HttpPost("reset-password")]
+        [EnableRateLimiting("auth")]
+        public async Task<IActionResult> ResetPassword([FromBody] ResetPassword request, CancellationToken cancellationToken)
+        {
+            if (!UserNames.IsValid(request.UserName) || !PINCodeService.IsValid(request.PINCode) || request.NewPassword == request.PINCode)
+                return BadRequest(new AuthError("VALIDATION_ERROR", "کارن نوم، PIN او نوی پټنوم وګورئ."));
+            var user = await context.Users.SingleOrDefaultAsync(u => u.NormalizedUserName == UserNames.Normalize(request.UserName), cancellationToken);
+            if (!await CheckPINAsync(user, request.PINCode, cancellationToken))
+                return Unauthorized(new AuthError("INVALID_PIN", "کارن نوم یا PIN ناسم دی."));
+
+            passwords.SetPassword(user!, request.NewPassword);
+            user!.TokenVersion++;
+            try { await context.SaveChangesAsync(cancellationToken); }
+            catch (DbUpdateConcurrencyException)
+            {
+                return Conflict(new AuthError("RESET_CONFLICT", "پټنوم بدل نه شو. بیا هڅه وکړئ."));
+            }
+            return NoContent();
+        }
+
+        [Authorize]
+        [HttpPost("set-pin")]
+        [EnableRateLimiting("auth")]
+        public async Task<IActionResult> SetPIN([FromBody] SetPINCode request, CancellationToken cancellationToken)
+        {
+            if (!PINCodeService.IsValid(request.PINCode))
+                return BadRequest(new AuthError("VALIDATION_ERROR", "PIN باید له 6 تر 10 انګلیسي شمېرو وي."));
+            if (!int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out int id))
+                return Unauthorized(new AuthError("UNAUTHENTICATED", "بیا خپل حساب ته ننوځئ."));
+            var user = await context.Users.SingleOrDefaultAsync(u => u.Id == id, cancellationToken);
+            if (user == null)
+                return Unauthorized(new AuthError("UNAUTHENTICATED", "بیا خپل حساب ته ننوځئ."));
+            if (!passwords.Verify(user, request.CurrentPassword, out _))
+                return BadRequest(new AuthError("PASSWORD_INCORRECT", "اوسنی پټنوم ناسم دی."));
+
+            pins.Set(user, request.PINCode);
+            user.PINFailedAttempts = 0;
+            user.PINLockedUntilUtc = null;
+            await context.SaveChangesAsync(cancellationToken);
+            return NoContent();
+        }
+
+        private async Task<bool> CheckPINAsync(Users? user, string pin, CancellationToken cancellationToken)
+        {
+            if (user?.PINLockedUntilUtc > DateTime.UtcNow)
+            {
+                _ = pins.Verify(null, pin);
+                return false;
+            }
+            if (!pins.Verify(user, pin))
+            {
+                if (user != null)
+                {
+                    user.PINFailedAttempts++;
+                    if (user.PINFailedAttempts >= 5)
+                    {
+                        user.PINFailedAttempts = 0;
+                        user.PINLockedUntilUtc = DateTime.UtcNow.AddMinutes(15);
+                    }
+                    await context.SaveChangesAsync(cancellationToken);
+                }
+                return false;
+            }
+            if (user!.PINFailedAttempts > 0 || user.PINLockedUntilUtc != null)
+            {
+                user.PINFailedAttempts = 0;
+                user.PINLockedUntilUtc = null;
+                await context.SaveChangesAsync(cancellationToken);
+            }
+            return true;
         }
 
         [Authorize]
