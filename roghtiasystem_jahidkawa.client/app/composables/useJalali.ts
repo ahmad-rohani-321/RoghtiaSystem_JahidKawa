@@ -25,3 +25,10 @@ export const formatJalali = (date: JalaliDate, weekday = false) => {
   // Keep the shared display compact and omit Intl's Latin "AP" era marker.
   return `${weekday ? `${part('weekday')}، ` : ''}${part('day')} ${formatJalaliMonth(date)} ${part('year')}`
 }
+export const formatJalaliDateTime = (utc: string) => {
+  const date = new Date(utc)
+  if (Number.isNaN(date.getTime())) return ''
+  const parts = new Intl.DateTimeFormat(JALALI_LOCALE, { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Kabul' }).formatToParts(date)
+  const part = (type: Intl.DateTimeFormatPartTypes) => parts.find(value => value.type === type)?.value ?? ''
+  return `${localNumber(part('day'))} ${JALALI_MONTH_NAMES[Number(part('month')) - 1]} ${localNumber(part('year'))}، ${localNumber(part('hour'))}:${localNumber(part('minute'))}`
+}

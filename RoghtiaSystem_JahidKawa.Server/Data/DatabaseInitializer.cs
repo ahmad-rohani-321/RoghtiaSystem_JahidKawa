@@ -93,6 +93,50 @@ namespace RoghtiaSystem_JahidKawa.Server.Data
                 CREATE UNIQUE INDEX IF NOT EXISTS IX_Patients_UserId_Code ON Patients (UserId, Code);
                 CREATE INDEX IF NOT EXISTS IX_Patients_UserId_Id ON Patients (UserId, Id);
                 """);
+                var legacyTreatments = await PrepareLegacyTreatmentsAsync(connection, transaction);
+                await ExecuteAsync(connection, transaction, """
+                CREATE TABLE IF NOT EXISTS ClinicalNotes (
+                    Id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+                    UserId INTEGER NOT NULL,
+                    Text TEXT NOT NULL,
+                    FOREIGN KEY (UserId) REFERENCES Users (Id) ON DELETE RESTRICT
+                );
+                CREATE UNIQUE INDEX IF NOT EXISTS IX_ClinicalNotes_UserId_Text ON ClinicalNotes (UserId, Text);
+                CREATE TABLE IF NOT EXISTS Treatments (
+                    Id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+                    UserId INTEGER NOT NULL,
+                    PatientId INTEGER NOT NULL,
+                    RecordedAtUtc TEXT NOT NULL,
+                    BloodPressure TEXT NOT NULL,
+                    FOREIGN KEY (UserId) REFERENCES Users (Id) ON DELETE RESTRICT,
+                    FOREIGN KEY (PatientId) REFERENCES Patients (Id) ON DELETE RESTRICT
+                );
+                CREATE INDEX IF NOT EXISTS IX_Treatments_UserId_RecordedAtUtc ON Treatments (UserId, RecordedAtUtc);
+                CREATE INDEX IF NOT EXISTS IX_Treatments_UserId_PatientId ON Treatments (UserId, PatientId);
+                CREATE TABLE IF NOT EXISTS PrescriptionItems (
+                    Id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+                    TreatmentId INTEGER NOT NULL,
+                    MedicationId INTEGER NOT NULL,
+                    Position INTEGER NOT NULL,
+                    MedicationName TEXT NOT NULL,
+                    MedicationType TEXT NOT NULL,
+                    Duration TEXT NOT NULL,
+                    Refills INTEGER NOT NULL CONSTRAINT CK_PrescriptionItems_Refills CHECK (Refills BETWEEN 0 AND 100),
+                    FOREIGN KEY (TreatmentId) REFERENCES Treatments (Id) ON DELETE CASCADE,
+                    FOREIGN KEY (MedicationId) REFERENCES Medications (Id) ON DELETE RESTRICT
+                );
+                CREATE UNIQUE INDEX IF NOT EXISTS IX_PrescriptionItems_TreatmentId_Position ON PrescriptionItems (TreatmentId, Position);
+                CREATE INDEX IF NOT EXISTS IX_PrescriptionItems_MedicationId ON PrescriptionItems (MedicationId);
+                CREATE TABLE IF NOT EXISTS TreatmentClinicalNotes (
+                    TreatmentId INTEGER NOT NULL,
+                    ClinicalNoteId INTEGER NOT NULL,
+                    PRIMARY KEY (TreatmentId, ClinicalNoteId),
+                    FOREIGN KEY (TreatmentId) REFERENCES Treatments (Id) ON DELETE CASCADE,
+                    FOREIGN KEY (ClinicalNoteId) REFERENCES ClinicalNotes (Id) ON DELETE RESTRICT
+                );
+                CREATE INDEX IF NOT EXISTS IX_TreatmentClinicalNotes_ClinicalNoteId ON TreatmentClinicalNotes (ClinicalNoteId);
+                """);
+                if (legacyTreatments) await CopyLegacyTreatmentsAsync(connection, transaction);
                 await transaction.CommitAsync();
             }
             finally { await context.Database.CloseConnectionAsync(); }
@@ -104,6 +148,110 @@ namespace RoghtiaSystem_JahidKawa.Server.Data
             command.Transaction = transaction;
             command.CommandText = sql;
             await command.ExecuteNonQueryAsync();
+        }
+
+        private static async Task<HashSet<string>> GetColumnsAsync(DbConnection connection, DbTransaction transaction, string table)
+        {
+            var columns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            await using var command = connection.CreateCommand();
+            command.Transaction = transaction;
+            command.CommandText = $"PRAGMA table_info({table})";
+            await using var reader = await command.ExecuteReaderAsync();
+            while (await reader.ReadAsync()) columns.Add(reader.GetString(1));
+            return columns;
+        }
+
+        private static async Task<bool> PrepareLegacyTreatmentsAsync(DbConnection connection, DbTransaction transaction)
+        {
+            var treatmentColumns = await GetColumnsAsync(connection, transaction, "Treatments");
+            if (treatmentColumns.Count == 0 || treatmentColumns.Contains("RecordedAtUtc")) return false;
+            var itemColumns = await GetColumnsAsync(connection, transaction, "PrescriptionItems");
+            if (!treatmentColumns.Contains("CreatedAtUtc") || !treatmentColumns.Contains("UserId") ||
+                !treatmentColumns.Contains("PatientId") || !itemColumns.Contains("Name") ||
+                !itemColumns.Contains("SortOrder") || !itemColumns.Contains("TreatmentId"))
+                throw new InvalidOperationException("The existing treatment schema is not recognized. No treatment records were changed.");
+            if ((await GetColumnsAsync(connection, transaction, "LegacyTreatments")).Count != 0 ||
+                (await GetColumnsAsync(connection, transaction, "LegacyPrescriptionItems")).Count != 0)
+                throw new InvalidOperationException("A legacy treatment archive already exists. No treatment records were changed.");
+
+            // SQLite cannot remove the old required columns. Archive both complete tables,
+            // then copy their usable data into the new schema in this same transaction.
+            await ExecuteAsync(connection, transaction, "ALTER TABLE PrescriptionItems RENAME TO LegacyPrescriptionItems");
+            await ExecuteAsync(connection, transaction, "ALTER TABLE Treatments RENAME TO LegacyTreatments");
+            return true;
+        }
+
+        private static async Task CopyLegacyTreatmentsAsync(DbConnection connection, DbTransaction transaction)
+        {
+            await ExecuteAsync(connection, transaction, """
+                INSERT INTO Treatments (Id, UserId, PatientId, RecordedAtUtc, BloodPressure)
+                SELECT old.Id, old.UserId, old.PatientId, old.CreatedAtUtc, ''
+                FROM LegacyTreatments old
+                JOIN Patients patient ON patient.Id = old.PatientId AND patient.UserId = old.UserId
+                """);
+
+            // Legacy prescriptions allowed free-text medicines. Keep each original row in
+            // the archive and create an owned medication when it has no valid catalog entry.
+            await ExecuteAsync(connection, transaction, """
+                INSERT INTO Medications (Name, Type, Quantity, Remarks, UserId)
+                SELECT DISTINCT
+                    COALESCE(NULLIF(TRIM(item.Name), ''), 'Legacy medication ' || item.Id),
+                    COALESCE(NULLIF(TRIM(item.Type), ''), 'Other'),
+                    0, '', old.UserId
+                FROM LegacyPrescriptionItems item
+                JOIN LegacyTreatments old ON old.Id = item.TreatmentId
+                JOIN Treatments current ON current.Id = old.Id
+                WHERE NOT EXISTS (SELECT 1 FROM Medications valid WHERE valid.Id = item.MedicationId AND valid.UserId = old.UserId)
+                  AND NOT EXISTS (
+                      SELECT 1 FROM Medications existing
+                      WHERE existing.UserId = old.UserId
+                        AND existing.Name = COALESCE(NULLIF(TRIM(item.Name), ''), 'Legacy medication ' || item.Id)
+                        AND existing.Type = COALESCE(NULLIF(TRIM(item.Type), ''), 'Other'))
+                """);
+            await ExecuteAsync(connection, transaction, """
+                INSERT INTO PrescriptionItems
+                    (Id, TreatmentId, MedicationId, Position, MedicationName, MedicationType, Duration, Refills)
+                SELECT item.Id, item.TreatmentId,
+                    COALESCE(
+                        (SELECT valid.Id FROM Medications valid WHERE valid.Id = item.MedicationId AND valid.UserId = old.UserId),
+                        (SELECT owned.Id FROM Medications owned
+                         WHERE owned.UserId = old.UserId
+                           AND owned.Name = COALESCE(NULLIF(TRIM(item.Name), ''), 'Legacy medication ' || item.Id)
+                           AND owned.Type = COALESCE(NULLIF(TRIM(item.Type), ''), 'Other')
+                         ORDER BY owned.Id LIMIT 1)),
+                    ROW_NUMBER() OVER (PARTITION BY item.TreatmentId ORDER BY item.SortOrder, item.Id),
+                    COALESCE(NULLIF(TRIM(item.Name), ''), 'Legacy medication ' || item.Id),
+                    COALESCE(NULLIF(TRIM(item.Type), ''), 'Other'),
+                    item.Duration, 0
+                FROM LegacyPrescriptionItems item
+                JOIN LegacyTreatments old ON old.Id = item.TreatmentId
+                JOIN Treatments current ON current.Id = old.Id
+                """);
+
+            foreach (var (column, label) in new[]
+            {
+                ("Symptoms", "نښې"), ("Diagnosis", "تشخیص"),
+                ("Notes", "یادښتونه"), ("PrescriptionNotes", "د نسخې لارښوونې")
+            })
+            {
+                if (!(await GetColumnsAsync(connection, transaction, "LegacyTreatments")).Contains(column)) continue;
+                await ExecuteAsync(connection, transaction, $"""
+                    INSERT OR IGNORE INTO ClinicalNotes (UserId, Text)
+                    SELECT old.UserId, '{label}: ' || TRIM(old.{column})
+                    FROM LegacyTreatments old
+                    JOIN Treatments current ON current.Id = old.Id
+                    WHERE TRIM(old.{column}) <> ''
+                    """);
+                await ExecuteAsync(connection, transaction, $"""
+                    INSERT OR IGNORE INTO TreatmentClinicalNotes (TreatmentId, ClinicalNoteId)
+                    SELECT old.Id, note.Id
+                    FROM LegacyTreatments old
+                    JOIN Treatments current ON current.Id = old.Id
+                    JOIN ClinicalNotes note ON note.UserId = old.UserId
+                        AND note.Text = '{label}: ' || TRIM(old.{column})
+                    WHERE TRIM(old.{column}) <> ''
+                    """);
+            }
         }
     }
 }

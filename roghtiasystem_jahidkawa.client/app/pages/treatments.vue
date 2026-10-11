@@ -1,7 +1,8 @@
-<script setup>
+<script setup lang="ts">
 useHead({ title: 'تداوي — روغتیا' })
+const route = useRoute()
 </script>
-
 <template>
-  <section class="empty-page" aria-label="تداوي"></section>
+  <NuxtPage v-if="route.path !== '/treatments'" />
+  <TreatmentListing v-else />
 </template>

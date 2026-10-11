@@ -28,8 +28,8 @@ export async function readLimitedBody(event: H3Event, limit: number, errorCode =
 
 export async function requestOwnedApi<T>(event: H3Event, path: string, options: {
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE'
-  body?: Buffer | Record<string, string | number>
-  query?: Record<string, string | number>
+  body?: Buffer | Record<string, unknown>
+  query?: Record<string, string | number | boolean>
   contentType?: string
   binary?: boolean
 } = {}) {
