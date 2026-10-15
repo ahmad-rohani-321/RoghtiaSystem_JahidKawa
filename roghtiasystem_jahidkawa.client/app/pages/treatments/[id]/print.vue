@@ -9,17 +9,15 @@ const api = useTreatments()
 const doctor = useDoctorInformation()
 const auth = useAuth()
 const treatment = ref<Treatment | null>(null)
-try { treatment.value = await api.get(id) }
-catch (error: unknown) {
-  const failure = error as { statusCode?: number, status?: number }
-  throw createError({ statusCode: (failure.statusCode || failure.status) === 404 ? 404 : 503, statusMessage: 'Unable to load treatment.' })
-}
-try { await doctor.load() } catch { /* The prescription remains printable without optional branding. */ }
+const loading = ref(true)
+const loadError = ref('')
+const requestPending = ref(false)
 
 const info = computed(() => doctor.information.value)
 const doctorName = computed(() => info.value?.doctorNameEnglish || auth.user.value?.userName || 'Doctor')
 const profession = computed(() => info.value?.doctorProfessionEnglish || '')
 const hospitalLogo = computed(() => info.value?.hospitalLogo || null)
+const hospitalName = computed(() => info.value?.hospitalNamePashto?.trim() || '')
 const doctorLogo = computed(() => info.value?.doctorLogo || null)
 const genders: Record<string, string> = { Male: 'Male', Female: 'Female', Other: 'Other' }
 const dateParts = computed(() => (treatment.value ? formatJalaliDateTime(treatment.value.recordedAtUtc) : '').split(', '))
@@ -28,25 +26,60 @@ const prescriptionNumber = computed(() => {
   const year = new Date(treatment.value.recordedAtUtc).getUTCFullYear()
   return `RX-${year}-${String(treatment.value.id).padStart(6, '0')}`
 })
+const clinicalNotesText = computed(() => treatment.value?.clinicalNotes
+  .map(note => note.text.trim()).filter(Boolean).join(', ') || '')
+const additionalInstructionsText = computed(() => {
+  const items = treatment.value?.additionalInstructionItems.map(item => item.text.trim()).filter(Boolean) || []
+  const legacy = treatment.value?.additionalInstructions?.trim().replace(/\s*[\r\n]+\s*/g, ', ')
+  if (legacy) items.push(legacy)
+  return items.join(', ')
+})
 const printDocument = () => window.print()
+
+async function loadTreatment() {
+  if (requestPending.value) return
+  requestPending.value = true
+  loading.value = true
+  loadError.value = ''
+  try {
+    treatment.value = await api.get(id)
+    try { await doctor.load() } catch { /* The prescription remains printable without optional branding. */ }
+    if (route.query.auto === '1') {
+      await nextTick()
+      await document.fonts.ready
+      await Promise.all(Array.from(document.querySelectorAll('.print-sheet img')).map(image => (image as HTMLImageElement).decode().catch(() => {})))
+      window.print()
+    }
+  } catch (error: unknown) {
+    const failure = error as { statusCode?: number, status?: number }
+    const status = failure.statusCode || failure.status
+    if (status === 401) {
+      await navigateTo({ path: '/login', query: { redirect: route.fullPath } })
+      return
+    }
+    loadError.value = status === 404
+      ? 'This treatment was not found or is no longer available to your account.'
+      : 'The treatment could not be loaded. Check that the server is running, then try again.'
+  } finally {
+    requestPending.value = false
+    loading.value = false
+  }
+}
 
 useHead({ title: `Prescription ${prescriptionNumber.value} — Roghtia` })
 
-onMounted(async () => {
-  if (route.query.auto !== '1' || !treatment.value) return
-  await nextTick()
-  await document.fonts.ready
-  await Promise.all(Array.from(document.querySelectorAll('.print-sheet img')).map(image => (image as HTMLImageElement).decode().catch(() => {})))
-  window.print()
-})
+onMounted(loadTreatment)
 </script>
 
 <template>
-  <div v-if="treatment" class="print-page">
+  <div class="print-page">
+    <div v-if="loading" class="print-state" role="status"><UIcon name="i-lucide-loader-circle" class="animate-spin" />Loading treatment…</div>
+    <div v-else-if="loadError" class="print-state print-error" role="alert"><span>{{ loadError }}</span><UButton type="button" color="neutral" variant="outline" icon="i-lucide-refresh-cw" @click="loadTreatment">Try again</UButton><UButton to="/treatments" color="neutral" variant="ghost">Back to treatments</UButton></div>
+    <template v-else-if="treatment">
     <div class="print-toolbar"><UButton :to="`/treatments/${id}/edit`" color="neutral" variant="outline" icon="i-lucide-arrow-left">Back to editor</UButton><UButton type="button" icon="i-lucide-printer" @click="printDocument">Print</UButton></div>
     <article class="print-sheet" dir="ltr" aria-label="Printable treatment prescription">
       <header class="sheet-header" :class="{ 'without-doctor-logo': !doctorLogo }">
-        <div class="clinic-brand"><div class="logo-frame"><img v-if="hospitalLogo" :src="hospitalLogo" alt="Hospital logo"><UIcon v-else name="i-lucide-heart-pulse" /></div></div>
+        <div class="clinic-brand"><div class="logo-frame"><img v-if="hospitalLogo" :src="hospitalLogo" alt="Hospital logo"><UIcon v-else name="i-lucide-heart-pulse" /></div><p v-if="hospitalName" class="hospital-name" dir="rtl"><bdi>{{ hospitalName }}</bdi></p></div>
         <div v-if="doctorLogo" class="doctor-logo-frame"><img :src="doctorLogo" alt="Doctor logo"></div>
         <div class="doctor-brand"><h2><bdi>{{ doctorName }}</bdi></h2><p v-if="profession"><bdi>{{ profession }}</bdi></p><p class="doctor-user">{{ auth.user.value?.userName }}</p></div>
       </header>
@@ -58,30 +91,35 @@ onMounted(async () => {
         <section class="prescription-section" aria-label="Prescription medications"><table><thead><tr><th>#</th><th>Medications</th><th>Type</th><th>Dose</th><th>Frequency</th><th>Duration</th></tr></thead><tbody><tr v-for="item in treatment.prescriptionItems" :key="item.id"><td><span class="number-circle">{{ localNumber(item.position) }}</span></td><td class="medicine-name"><bdi>{{ item.medicationName }}</bdi></td><td>{{ item.medicationType }}</td><td>{{ localNumber(item.dose) }}</td><td>{{ item.frequency }}</td><td>{{ item.duration }}</td></tr></tbody></table></section>
       </template>
 
-      <section v-if="treatment.clinicalNotes.length" class="notes-box"><h2><UIcon name="i-lucide-clipboard-list" /> Clinical notes</h2><ul><li v-for="note in treatment.clinicalNotes" :key="note.id"><bdi>{{ note.text }}</bdi></li></ul></section>
+      <section v-if="clinicalNotesText" class="notes-box"><h2><UIcon name="i-lucide-clipboard-list" /> Clinical notes</h2><p><bdi>{{ clinicalNotesText }}</bdi></p></section>
 
-      <section v-if="treatment.additionalInstructions?.trim() || treatment.additionalInstructionItems.length" class="instructions-box" aria-label="Additional instructions"><h2><UIcon name="i-lucide-info" /> Additional instructions</h2><ul v-if="treatment.additionalInstructionItems.length"><li v-for="instruction in treatment.additionalInstructionItems" :key="instruction.id"><bdi>{{ instruction.text }}</bdi></li></ul><p v-if="treatment.additionalInstructions?.trim()">{{ treatment.additionalInstructions }}</p></section>
+      <section v-if="additionalInstructionsText" class="instructions-box" aria-label="Additional instructions"><h2><UIcon name="i-lucide-info" /> Additional instructions</h2><p><bdi>{{ additionalInstructionsText }}</bdi></p></section>
 
       <footer class="sheet-footer"><div class="signature-block"><div class="signature-line"></div><strong><bdi>{{ doctorName }}</bdi></strong><span v-if="profession"><bdi>{{ profession }}</bdi></span></div><div class="footer-date"><span>Date: {{ dateParts[0] }}</span><span>Doctor signature: ________________</span></div></footer>
       <div class="green-wave" aria-hidden="true"></div>
     </article>
+    </template>
   </div>
 </template>
 
 <style scoped>
 .print-page { max-width: 210mm; margin-inline: auto; color: #103e35; }
+.print-state { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; padding: 20px; border: 1px solid #bfd9cd; border-radius: 12px; background: #f0f7f3; color: #064735; }
+.print-state .iconify { width: 20px; height: 20px; }
+.print-error { justify-content: space-between; }
 .print-toolbar { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
-.print-sheet { position: relative; display: flex; flex-direction: column; gap: 12px; width: 210mm; min-height: 297mm; box-sizing: border-box; padding: 11mm 10mm 16mm; overflow: hidden; background: #fff; box-shadow: 0 20px 55px #173f3426; font-family: 'Segoe UI', Arial, sans-serif; font-size: 9.5pt; line-height: 1.4; }
-.sheet-header { display: grid; grid-template-columns: minmax(30mm, 1fr) minmax(18mm, 24mm) minmax(48mm, .9fr); gap: 5mm; align-items: center; min-height: 27mm; padding: 1mm 0 3mm; border-bottom: 1px solid #dce9e2; }
+.print-sheet { position: relative; display: flex; flex-direction: column; gap: 12px; width: 210mm; min-height: 297mm; box-sizing: border-box; padding: 11mm 10mm 16mm; overflow: hidden; background: #fff; box-shadow: 0 20px 55px #173f3426; font-family: 'Vazirmatn', 'Segoe UI', Arial, sans-serif; font-size: 9.5pt; line-height: 1.4; }
+.sheet-header { display: grid; grid-template-columns: minmax(34mm, .9fr) minmax(18mm, 22mm) minmax(48mm, 1fr); gap: 4mm; align-items: center; min-height: 25mm; padding: 0 0 4mm; }
 .sheet-header.without-doctor-logo { grid-template-columns: minmax(30mm, 1fr) minmax(48mm, .9fr); }
-.clinic-brand { display: flex; align-items: center; justify-content: flex-start; min-width: 0; }
-.logo-frame { display: grid; place-items: center; width: 24mm; height: 24mm; flex-shrink: 0; color: #07553e; }
+.clinic-brand { display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 0; }
+.logo-frame { display: grid; place-items: center; width: 22mm; height: 22mm; flex-shrink: 0; color: #07553e; }
 .logo-frame img { display: block; width: 100%; height: 100%; object-fit: contain; }
 .logo-frame .iconify { width: 18mm; height: 18mm; }
-.doctor-logo-frame { display: grid; place-items: center; width: 22mm; height: 22mm; justify-self: center; overflow: hidden; }
+.hospital-name { max-width: 45mm; margin: 1mm 0 0; color: #064735; font-size: 11pt; font-weight: 700; line-height: 1.2; text-align: center; overflow-wrap: anywhere; }
+.doctor-logo-frame { display: grid; place-items: center; width: 21mm; height: 21mm; justify-self: center; overflow: hidden; }
 .doctor-logo-frame img { display: block; width: 100%; height: 100%; object-fit: contain; }
-.doctor-brand { min-width: 0; padding-inline-start: 5mm; border-inline-start: 1px solid #2d7960; }
-.doctor-brand h2 { margin: 0; color: #064735; font-size: 15pt; line-height: 1.25; overflow-wrap: anywhere; }
+.doctor-brand { min-width: 0; padding: 0; }
+.doctor-brand h2 { margin: 0; color: #064735; font-size: 16pt; line-height: 1.2; overflow-wrap: anywhere; }
 .doctor-brand p { margin: 1.5mm 0 0; font-size: 9.5pt; line-height: 1.3; overflow-wrap: anywhere; }
 .doctor-user { color: #597268; }
 .patient-box, .notes-box, .instructions-box { border: 1px solid #bfd9cd; border-radius: 3mm; background: linear-gradient(110deg, #f0f7f3, #f8fbf8); }
@@ -111,12 +149,7 @@ onMounted(async () => {
 .number-circle { display: grid; place-items: center; width: 8mm; height: 8mm; border-radius: 50%; background: #06503d; color: #fff; font-weight: 700; }
 .no-medicine { text-align: center; color: #698078 !important; }
 .notes-box, .instructions-box { padding: 3mm 4mm; }
-.notes-box ul { margin: 0; padding-inline-start: 7mm; color: #18394a; }
-.notes-box li { margin: .75mm 0; overflow-wrap: anywhere; }
-.notes-box p { margin: 0; }
-.instructions-box p { margin: 0; color: #18394a; white-space: pre-line; overflow-wrap: anywhere; }
-.instructions-box ul { margin: 0; padding-inline-start: 7mm; color: #18394a; }
-.instructions-box li { margin: .75mm 0; overflow-wrap: anywhere; }
+.notes-box p, .instructions-box p { margin: 0; color: #18394a; white-space: normal; overflow-wrap: anywhere; }
 .write-lines { display: grid; gap: 2mm; }
 .write-lines span { height: 3mm; border-bottom: 1px solid #d4e4de; }
 .sheet-footer { display: flex; justify-content: space-between; align-items: end; gap: 10mm; margin-top: auto; padding-bottom: 5mm; }
@@ -127,6 +160,6 @@ onMounted(async () => {
 .footer-date { display: grid; gap: 5mm; color: #18394a; }
 .green-wave { position: absolute; inset-inline: -5mm; bottom: -7mm; height: 20mm; border-top: 2mm solid #91a851; border-radius: 50% 50% 0 0; background: linear-gradient(115deg, #064735, #168363); transform: rotate(-2deg); }
 @media print { :global([data-slot="viewport"]) { display: none !important; } }
-@media (max-width: 700px) { .print-sheet { padding: 20px 14px 55px; min-height: 0; gap: 18px; font-size: 12px; }.sheet-header { grid-template-columns: minmax(0, 1fr) minmax(35px, 48px) minmax(0, 1fr); gap: 8px; min-height: 58px; padding-bottom: 10px; }.sheet-header.without-doctor-logo { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }.clinic-brand { justify-content: flex-start; }.logo-frame { width: 48px; height: 48px; }.doctor-logo-frame { width: 40px; height: 40px; }.doctor-brand { padding-inline-start: 8px; }.doctor-brand h2 { font-size: 14px; }.doctor-brand p { font-size: 10px; }.patient-grid { gap: 8px; }.patient-grid > dl + dl { padding-inline-start: 8px; }.patient-grid dl div { grid-template-columns: 70px minmax(0, 1fr); }.rx-mark { font-size: 38px; }.rx-mark sub { font-size: 18px; }.rx-title h2 { font-size: 22px; }.prescription-section { overflow-x: auto; }.prescription-section table { min-width: 480px; }.sheet-footer { margin-top: 25px; }.green-wave { height: 35px; bottom: -12px; } }
+@media (max-width: 700px) { .print-sheet { padding: 20px 14px 55px; min-height: 0; gap: 18px; font-size: 12px; }.sheet-header { grid-template-columns: minmax(0, 1fr) minmax(32px, 42px) minmax(0, 1fr); gap: 8px; min-height: 52px; padding-bottom: 8px; }.sheet-header.without-doctor-logo { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }.logo-frame { width: 42px; height: 42px; }.hospital-name { max-width: 100%; margin-top: 3px; font-size: 12px; }.doctor-logo-frame { width: 36px; height: 36px; }.doctor-brand h2 { font-size: 14px; }.doctor-brand p { font-size: 10px; }.patient-grid { gap: 8px; }.patient-grid > dl + dl { padding-inline-start: 8px; }.patient-grid dl div { grid-template-columns: 70px minmax(0, 1fr); }.rx-mark { font-size: 38px; }.rx-mark sub { font-size: 18px; }.rx-title h2 { font-size: 22px; }.prescription-section { overflow-x: auto; }.prescription-section table { min-width: 480px; }.sheet-footer { margin-top: 25px; }.green-wave { height: 35px; bottom: -12px; } }
 @media print { @page { size: A4 portrait; margin: 0; } html, body { width: 210mm; }.print-page { width: 210mm; max-width: none; margin: 0; }.print-toolbar { display: none !important; }.print-sheet { width: 210mm; min-height: 297mm; padding: 11mm 10mm 16mm; gap: 12px; overflow: visible; box-shadow: none; font-size: 9.5pt; print-color-adjust: exact; -webkit-print-color-adjust: exact; }.sheet-header, .patient-box, .rx-heading, .notes-box, .instructions-box, .sheet-footer { break-inside: avoid; }.prescription-section tr { break-inside: avoid; } }
 </style>
