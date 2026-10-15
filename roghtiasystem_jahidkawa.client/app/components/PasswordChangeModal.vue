@@ -10,20 +10,20 @@ const serviceMessage = ref('')
 const credentials = reactive({ currentPassword: '', newPassword: '', confirmation: '' })
 const visible = reactive({ currentPassword: false, newPassword: false, confirmation: false })
 const fields = [
-  { name: 'currentPassword', label: 'اوسنی پټنوم', autocomplete: 'current-password' },
-  { name: 'newPassword', label: 'نوی پټنوم', autocomplete: 'new-password' },
-  { name: 'confirmation', label: 'د نوي پټنوم تایید', autocomplete: 'new-password' }
+  { name: 'currentPassword', label: 'Current password', autocomplete: 'current-password' },
+  { name: 'newPassword', label: 'New password', autocomplete: 'new-password' },
+  { name: 'confirmation', label: 'Confirm new password', autocomplete: 'new-password' }
 ] as const
 
 function validate(state: typeof credentials): FormError[] {
   const errors: FormError[] = []
-  if (!state.currentPassword) errors.push({ name: 'currentPassword', message: 'خپل اوسنی پټنوم ولیکئ.' })
-  else if (state.currentPassword.length > 128) errors.push({ name: 'currentPassword', message: 'پټنوم باید تر 128 تورو ډېر نه وي.' })
-  if (state.newPassword.length < 8) errors.push({ name: 'newPassword', message: 'نوی پټنوم باید لږ تر لږه 8 توري ولري.' })
-  else if (state.newPassword.length > 128) errors.push({ name: 'newPassword', message: 'پټنوم باید تر 128 تورو ډېر نه وي.' })
-  else if (state.newPassword === state.currentPassword) errors.push({ name: 'newPassword', message: 'نوی پټنوم باید له اوسني پټنوم څخه توپیر ولري.' })
-  if (!state.confirmation) errors.push({ name: 'confirmation', message: 'نوی پټنوم بیا ولیکئ.' })
-  else if (state.confirmation !== state.newPassword) errors.push({ name: 'confirmation', message: 'دواړه نوي پټنومونه باید یو شان وي.' })
+  if (!state.currentPassword) errors.push({ name: 'currentPassword', message: 'Enter your current password.' })
+  else if (state.currentPassword.length > 128) errors.push({ name: 'currentPassword', message: 'Password must not exceed 128 characters.' })
+  if (state.newPassword.length < 8) errors.push({ name: 'newPassword', message: 'New password must contain at least 8 characters.' })
+  else if (state.newPassword.length > 128) errors.push({ name: 'newPassword', message: 'Password must not exceed 128 characters.' })
+  else if (state.newPassword === state.currentPassword) errors.push({ name: 'newPassword', message: 'New password must differ from the current password.' })
+  if (!state.confirmation) errors.push({ name: 'confirmation', message: 'Enter the new password again.' })
+  else if (state.confirmation !== state.newPassword) errors.push({ name: 'confirmation', message: 'The new passwords must match.' })
   return errors
 }
 
@@ -63,21 +63,21 @@ async function submit() {
     const code = failure.data?.data?.code || failure.data?.code
     const status = failure.statusCode || failure.status
     const messages: Record<string, string> = {
-      PASSWORD_INCORRECT: 'اوسنی پټنوم ناسم دی.',
-      VALIDATION_ERROR: 'پټنومونه وګورئ او بیا هڅه وکړئ.',
-      TOO_MANY_REQUESTS: 'ډېرې هڅې شوې دي. لږ وروسته بیا هڅه وکړئ.',
-      INVALID_ORIGIN: 'غوښتنه ونه منل شوه. پاڼه تازه کړئ او بیا هڅه وکړئ.'
+      PASSWORD_INCORRECT: 'Current password is incorrect.',
+      VALIDATION_ERROR: 'Check the passwords and try again.',
+      TOO_MANY_REQUESTS: 'Too many attempts. Please try again later.',
+      INVALID_ORIGIN: 'Request rejected. Refresh the page and try again.'
     }
     if (code === 'PASSWORD_INCORRECT') {
       form.value?.setErrors([{ name: 'currentPassword', message: messages.PASSWORD_INCORRECT! }])
       focusCurrentPassword = true
     }
     if (status === 401 && code !== 'PASSWORD_INCORRECT') {
-      toast.add({ title: 'بیا ننوځئ', description: 'ستاسې ناسته پای ته رسېدلې ده. بیا خپل حساب ته ننوځئ.', color: 'warning' })
+      toast.add({ title: 'Sign in again', description: 'Your session has expired. Please sign in again.', color: 'warning' })
       await returnToLogin()
       return
     }
-    serviceMessage.value = messages[code || ''] || (status === 429 ? messages.TOO_MANY_REQUESTS! : 'پټنوم بدل نه شو. مهرباني وکړئ بیا هڅه وکړئ.')
+    serviceMessage.value = messages[code || ''] || (status === 429 ? messages.TOO_MANY_REQUESTS! : 'Unable to change password. Please try again.')
   } finally {
     pending.value = false
   }
@@ -87,7 +87,7 @@ async function submit() {
     if (input) document.getElementById(input)?.focus()
   }
   if (saved) {
-    toast.add({ title: 'پټنوم بدل شو', description: 'له نوي پټنوم سره بیا خپل حساب ته ننوځئ.', color: 'success', icon: 'i-lucide-shield-check' })
+    toast.add({ title: 'Password changed', description: 'Sign in again using your new password.', color: 'success', icon: 'i-lucide-shield-check' })
     await returnToLogin()
   }
 }
@@ -99,11 +99,11 @@ watch(credentials, () => { serviceMessage.value = '' })
 <template>
   <UModal
     :open="open"
-    title="د پټنوم بدلول"
-    description="د پټنوم له بدلولو وروسته له نوي پټنوم سره بیا ننوځئ."
-    :close="pending ? false : { 'aria-label': 'تړل' }"
+    title="Change password"
+    description="After changing your password, sign in again with the new password."
+    :close="pending ? false : { 'aria-label': 'Close' }"
     :dismissible="!pending"
-    :content="{ dir: 'rtl' }"
+    :content="{ dir: 'ltr' }"
     :ui="{ content: 'max-w-lg min-w-0', wrapper: 'min-w-0 pe-8', body: 'min-w-0 min-h-0', title: 'text-lg break-words', description: 'text-base leading-7 break-words' }"
     @update:open="value => { if (!pending) open = value }"
   >
@@ -112,15 +112,15 @@ watch(credentials, () => { serviceMessage.value = '' })
         <UFormField v-for="field in fields" :key="field.name" :label="field.label" :name="field.name" size="lg" required>
           <UInput v-model="credentials[field.name]" :name="field.name" :type="visible[field.name] ? 'text' : 'password'" :autocomplete="field.autocomplete" :placeholder="field.label" icon="i-lucide-lock-keyhole" size="xl" class="w-full" :ui="{ base: 'password-input' }">
             <template #trailing>
-              <UButton type="button" color="neutral" variant="ghost" size="sm" :disabled="pending" :icon="visible[field.name] ? 'i-lucide-eye-off' : 'i-lucide-eye'" :aria-label="`${field.label}: ${visible[field.name] ? 'پټ کړئ' : 'ښکاره کړئ'}`" :aria-pressed="visible[field.name]" @click="visible[field.name] = !visible[field.name]" />
+              <UButton type="button" color="neutral" variant="ghost" size="sm" :disabled="pending" :icon="visible[field.name] ? 'i-lucide-eye-off' : 'i-lucide-eye'" :aria-label="`${field.label}: ${visible[field.name] ? 'Hide' : 'Show'}`" :aria-pressed="visible[field.name]" @click="visible[field.name] = !visible[field.name]" />
             </template>
           </UInput>
         </UFormField>
-        <p class="password-help">نوی پټنوم باید له 8 تر 128 تورو پورې وي.</p>
+        <p class="password-help">New password must contain 8 to 128 characters.</p>
         <p v-if="serviceMessage" class="password-message" role="alert">{{ serviceMessage }}</p>
         <div class="password-actions">
-          <UButton type="submit" size="lg" icon="i-lucide-key-round" :loading="pending" :disabled="pending">پټنوم بدل کړئ</UButton>
-          <UButton type="button" size="lg" color="neutral" variant="outline" :disabled="pending" @click="open = false">بندول</UButton>
+          <UButton type="submit" size="lg" icon="i-lucide-key-round" :loading="pending" :disabled="pending">Change password</UButton>
+          <UButton type="button" size="lg" color="neutral" variant="outline" :disabled="pending" @click="open = false">Cancel</UButton>
         </div>
       </UForm>
     </template>

@@ -1,6 +1,6 @@
 <script setup>
 definePageMeta({ layout: false })
-useHead({ title: 'ننوتل — روغتیا' })
+useHead({ title: 'Sign in — Roghtia' })
 </script>
 
 <template>

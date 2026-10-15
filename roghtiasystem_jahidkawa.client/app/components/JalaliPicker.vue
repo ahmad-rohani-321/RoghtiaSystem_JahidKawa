@@ -18,10 +18,10 @@ const open = ref(false)
         size="sm"
         class="w-72 max-w-[calc(100vw-2rem)] p-2.5"
         :ui="{ body: 'pt-2', cellTrigger: 'text-sm', headCell: 'py-1 text-xs' }"
-        :prev-month="{ 'aria-label': 'تېره میاشت' }"
-        :next-month="{ 'aria-label': 'راتلونکې میاشت' }"
-        :prev-year="{ 'aria-label': 'تېر کال' }"
-        :next-year="{ 'aria-label': 'راتلونکی کال' }"
+        :prev-month="{ 'aria-label': 'Previous month' }"
+        :next-month="{ 'aria-label': 'Next month' }"
+        :prev-year="{ 'aria-label': 'Previous year' }"
+        :next-year="{ 'aria-label': 'Next year' }"
         @update:model-value="open = false"
       >
         <template #heading="{ date: visibleDate, view, value, setView }">

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-useHead({ title: 'تداوي — روغتیا' })
+useHead({ title: 'Treatments — Roghtia' })
 const route = useRoute()
 </script>
 <template>

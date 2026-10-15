@@ -1,6 +1,6 @@
 <script setup>
 definePageMeta({ layout: false })
-useHead({ title: 'نوی کارن — روغتیا' })
+useHead({ title: 'Create account — Roghtia' })
 </script>
 
 <template>

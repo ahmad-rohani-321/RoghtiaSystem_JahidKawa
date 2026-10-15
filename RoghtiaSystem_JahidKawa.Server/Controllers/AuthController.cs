@@ -22,11 +22,11 @@ namespace RoghtiaSystem_JahidKawa.Server.Controllers
         public async Task<IActionResult> Login([FromBody] Login request, CancellationToken cancellationToken)
         {
             if (!UserNames.IsValid(request.UserName))
-                return BadRequest(new AuthError("VALIDATION_ERROR", "کارن نوم سم نه دی."));
+                return BadRequest(new AuthError("VALIDATION_ERROR", "Invalid username."));
             var normalizedName = UserNames.Normalize(request.UserName);
             var user = await context.Users.SingleOrDefaultAsync(u => u.NormalizedUserName == normalizedName, cancellationToken);
             if (!passwords.Verify(user, request.Password, out bool needsUpgrade))
-                return Unauthorized(new AuthError("INVALID_CREDENTIALS", "کارن نوم یا پټنوم ناسم دی."));
+                return Unauthorized(new AuthError("INVALID_CREDENTIALS", "Incorrect username or password."));
             if (needsUpgrade)
             {
                 passwords.SetPassword(user!, request.Password);
@@ -41,10 +41,10 @@ namespace RoghtiaSystem_JahidKawa.Server.Controllers
         public async Task<IActionResult> Register([FromBody] Register request, CancellationToken cancellationToken)
         {
             if (!UserNames.IsValid(request.UserName) || !PINCodeService.IsValid(request.PINCode))
-                return BadRequest(new AuthError("VALIDATION_ERROR", "کارن نوم، پټنوم او 6 تر 10 شمېره‌ییز PIN وګورئ."));
+                return BadRequest(new AuthError("VALIDATION_ERROR", "Check the username, password and 6 to 10 digit PIN code."));
             var normalizedName = UserNames.Normalize(request.UserName);
             if (await context.Users.AnyAsync(u => u.NormalizedUserName == normalizedName, cancellationToken))
-                return Conflict(new AuthError("USERNAME_TAKEN", "دا کارن نوم مخکې کارول شوی دی."));
+                return Conflict(new AuthError("USERNAME_TAKEN", "This username is already taken."));
             var user = new Users { UserName = UserNames.Clean(request.UserName), NormalizedUserName = normalizedName };
             passwords.SetPassword(user, request.Password);
             pins.Set(user, request.PINCode);
@@ -53,7 +53,7 @@ namespace RoghtiaSystem_JahidKawa.Server.Controllers
             catch (DbUpdateException ex) when (ex.InnerException is SqliteException { SqliteErrorCode: 19 })
             {
                 // The unique index also protects concurrent registration requests.
-                return Conflict(new AuthError("USERNAME_TAKEN", "دا کارن نوم مخکې کارول شوی دی."));
+                return Conflict(new AuthError("USERNAME_TAKEN", "This username is already taken."));
             }
             return Ok(tokens.Create(user, false));
         }
@@ -64,10 +64,10 @@ namespace RoghtiaSystem_JahidKawa.Server.Controllers
         public async Task<IActionResult> VerifyPIN([FromBody] VerifyPINCode request, CancellationToken cancellationToken)
         {
             if (!UserNames.IsValid(request.UserName) || !PINCodeService.IsValid(request.PINCode))
-                return BadRequest(new AuthError("VALIDATION_ERROR", "کارن نوم او PIN وګورئ."));
+                return BadRequest(new AuthError("VALIDATION_ERROR", "Username and PIN code."));
             var user = await context.Users.SingleOrDefaultAsync(u => u.NormalizedUserName == UserNames.Normalize(request.UserName), cancellationToken);
             if (!await CheckPINAsync(user, request.PINCode, cancellationToken))
-                return Unauthorized(new AuthError("INVALID_PIN", "کارن نوم یا PIN ناسم دی."));
+                return Unauthorized(new AuthError("INVALID_PIN", "Username or PIN is incorrect."));
             return NoContent();
         }
 
@@ -77,17 +77,17 @@ namespace RoghtiaSystem_JahidKawa.Server.Controllers
         public async Task<IActionResult> ResetPassword([FromBody] ResetPassword request, CancellationToken cancellationToken)
         {
             if (!UserNames.IsValid(request.UserName) || !PINCodeService.IsValid(request.PINCode) || request.NewPassword == request.PINCode)
-                return BadRequest(new AuthError("VALIDATION_ERROR", "کارن نوم، PIN او نوی پټنوم وګورئ."));
+                return BadRequest(new AuthError("VALIDATION_ERROR", "Check username, PIN and new password."));
             var user = await context.Users.SingleOrDefaultAsync(u => u.NormalizedUserName == UserNames.Normalize(request.UserName), cancellationToken);
             if (!await CheckPINAsync(user, request.PINCode, cancellationToken))
-                return Unauthorized(new AuthError("INVALID_PIN", "کارن نوم یا PIN ناسم دی."));
+                return Unauthorized(new AuthError("INVALID_PIN", "Username or PIN is incorrect."));
 
             passwords.SetPassword(user!, request.NewPassword);
             user!.TokenVersion++;
             try { await context.SaveChangesAsync(cancellationToken); }
             catch (DbUpdateConcurrencyException)
             {
-                return Conflict(new AuthError("RESET_CONFLICT", "پټنوم بدل نه شو. بیا هڅه وکړئ."));
+                return Conflict(new AuthError("RESET_CONFLICT", "Unable to change password. Please try again."));
             }
             return NoContent();
         }
@@ -98,14 +98,14 @@ namespace RoghtiaSystem_JahidKawa.Server.Controllers
         public async Task<IActionResult> SetPIN([FromBody] SetPINCode request, CancellationToken cancellationToken)
         {
             if (!PINCodeService.IsValid(request.PINCode))
-                return BadRequest(new AuthError("VALIDATION_ERROR", "PIN باید له 6 تر 10 انګلیسي شمېرو وي."));
+                return BadRequest(new AuthError("VALIDATION_ERROR", "PIN must contain 6 to 10 digits."));
             if (!int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out int id))
-                return Unauthorized(new AuthError("UNAUTHENTICATED", "بیا خپل حساب ته ننوځئ."));
+                return Unauthorized(new AuthError("UNAUTHENTICATED", "Please sign in again."));
             var user = await context.Users.SingleOrDefaultAsync(u => u.Id == id, cancellationToken);
             if (user == null)
-                return Unauthorized(new AuthError("UNAUTHENTICATED", "بیا خپل حساب ته ننوځئ."));
+                return Unauthorized(new AuthError("UNAUTHENTICATED", "Please sign in again."));
             if (!passwords.Verify(user, request.CurrentPassword, out _))
-                return BadRequest(new AuthError("PASSWORD_INCORRECT", "اوسنی پټنوم ناسم دی."));
+                return BadRequest(new AuthError("PASSWORD_INCORRECT", "Current password is incorrect."));
 
             pins.Set(user, request.PINCode);
             user.PINFailedAttempts = 0;
@@ -150,21 +150,21 @@ namespace RoghtiaSystem_JahidKawa.Server.Controllers
         public async Task<IActionResult> ChangePassword([FromBody] ChangePassword request, CancellationToken cancellationToken)
         {
             if (request.NewPassword == request.CurrentPassword)
-                return BadRequest(new AuthError("VALIDATION_ERROR", "نوی پټنوم باید له اوسني پټنوم څخه توپیر ولري."));
+                return BadRequest(new AuthError("VALIDATION_ERROR", "New password must differ from the current password."));
             if (!int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out int id))
-                return Unauthorized(new AuthError("UNAUTHENTICATED", "بیا خپل حساب ته ننوځئ."));
+                return Unauthorized(new AuthError("UNAUTHENTICATED", "Please sign in again."));
             var user = await context.Users.SingleOrDefaultAsync(u => u.Id == id, cancellationToken);
             if (user == null)
-                return Unauthorized(new AuthError("UNAUTHENTICATED", "بیا خپل حساب ته ننوځئ."));
+                return Unauthorized(new AuthError("UNAUTHENTICATED", "Please sign in again."));
             if (!passwords.Verify(user, request.CurrentPassword, out _))
-                return BadRequest(new AuthError("PASSWORD_INCORRECT", "اوسنی پټنوم ناسم دی."));
+                return BadRequest(new AuthError("PASSWORD_INCORRECT", "Current password is incorrect."));
 
             passwords.SetPassword(user, request.NewPassword);
             user.TokenVersion++;
             try { await context.SaveChangesAsync(cancellationToken); }
             catch (DbUpdateConcurrencyException)
             {
-                return Unauthorized(new AuthError("UNAUTHENTICATED", "بیا خپل حساب ته ننوځئ."));
+                return Unauthorized(new AuthError("UNAUTHENTICATED", "Please sign in again."));
             }
             return NoContent();
         }
@@ -174,10 +174,10 @@ namespace RoghtiaSystem_JahidKawa.Server.Controllers
         public async Task<IActionResult> Me(CancellationToken cancellationToken)
         {
             if (!int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out int id))
-                return Unauthorized(new AuthError("UNAUTHENTICATED", "بیا خپل حساب ته ننوځئ."));
+                return Unauthorized(new AuthError("UNAUTHENTICATED", "Please sign in again."));
             var user = await context.Users.AsNoTracking().SingleOrDefaultAsync(u => u.Id == id, cancellationToken);
             return user == null
-                ? Unauthorized(new AuthError("UNAUTHENTICATED", "بیا خپل حساب ته ننوځئ."))
+                ? Unauthorized(new AuthError("UNAUTHENTICATED", "Please sign in again."))
                 : Ok(TokenService.GetUser(user));
         }
     }

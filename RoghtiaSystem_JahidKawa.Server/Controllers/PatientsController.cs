@@ -29,6 +29,18 @@ namespace RoghtiaSystem_JahidKawa.Server.Controllers
                 patients = patients.Where(p => EF.Functions.Like(p.Name, pattern, "\\")
                     || EF.Functions.Like(p.Code, pattern, "\\") || EF.Functions.Like(p.Phone, pattern, "\\"));
             }
+            if (!string.IsNullOrWhiteSpace(query.Name))
+            {
+                var name = EscapeLike(query.Name.Trim());
+                patients = patients.Where(p => EF.Functions.Like(p.Name, $"%{name}%", "\\"));
+            }
+            if (!string.IsNullOrWhiteSpace(query.Phone))
+            {
+                var phone = EscapeLike(query.Phone.Trim());
+                patients = patients.Where(p => EF.Functions.Like(p.Phone, $"%{phone}%", "\\"));
+            }
+            if (!string.IsNullOrWhiteSpace(query.Gender))
+                patients = patients.Where(p => p.Gender == query.Gender);
             var total = await patients.CountAsync(cancellationToken);
             var offset = ((long)query.Page - 1) * query.PageSize;
             List<PatientResponse> items = offset >= total ? [] : await ToResponses(patients.OrderByDescending(p => p.Id)
@@ -40,6 +52,15 @@ namespace RoghtiaSystem_JahidKawa.Server.Controllers
         public async Task<IActionResult> GetById(int id, CancellationToken cancellationToken)
         {
             var patient = await ToResponses(OwnedPatients.AsNoTracking().Where(p => p.Id == id)).SingleOrDefaultAsync(cancellationToken);
+            return patient == null ? PatientNotFound() : Ok(patient);
+        }
+
+        [HttpGet("by-code/{code}")]
+        public async Task<IActionResult> GetByCode(string code, CancellationToken cancellationToken)
+        {
+            if (code.Length > 32 || !System.Text.RegularExpressions.Regex.IsMatch(code, @"^RT-[1-9][0-9]*$"))
+                return PatientNotFound();
+            var patient = await ToResponses(OwnedPatients.AsNoTracking().Where(p => p.Code == code)).SingleOrDefaultAsync(cancellationToken);
             return patient == null ? PatientNotFound() : Ok(patient);
         }
 
@@ -73,7 +94,8 @@ namespace RoghtiaSystem_JahidKawa.Server.Controllers
             return Ok(await ToResponses(OwnedPatients.AsNoTracking().Where(p => p.Id == id)).SingleAsync(cancellationToken));
         }
 
-        private NotFoundObjectResult PatientNotFound() => NotFound(new AuthError("NOT_FOUND", "ناروغ ونه موندل شو."));
+        private NotFoundObjectResult PatientNotFound() => NotFound(new AuthError("NOT_FOUND", "Patient not found."));
+        private static string EscapeLike(string value) => value.Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_");
         private static void ApplyChanges(Patient patient, PatientRequest request)
         {
             patient.Name = request.Name!.Trim();

@@ -18,6 +18,12 @@ namespace RoghtiaSystem_JahidKawa.Server.Controllers
         private int LoggedInUserId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!, CultureInfo.InvariantCulture);
         private IQueryable<Treatment> OwnedTreatments => context.Treatments.Where(t => t.UserId == LoggedInUserId);
         private static readonly TimeSpan KabulOffset = TimeSpan.FromMinutes(270);
+        private static readonly HashSet<string> AllowedFrequencies = new(StringComparer.Ordinal)
+        {
+            "Once daily", "Twice daily", "Three times daily", "Four times daily",
+            "Every 4 hours", "Every 6 hours", "Every 8 hours", "Every 12 hours", "Every 24 hours",
+            "Once weekly", "As needed"
+        };
 
         [HttpGet]
         public async Task<IActionResult> Get([FromQuery] TreatmentQuery query, CancellationToken cancellationToken)
@@ -25,7 +31,7 @@ namespace RoghtiaSystem_JahidKawa.Server.Controllers
             if (query.FromUtc.HasValue != query.ToUtc.HasValue ||
                 (query.FromUtc.HasValue && (query.FromUtc.Value.Kind != DateTimeKind.Utc || query.ToUtc!.Value.Kind != DateTimeKind.Utc ||
                     query.FromUtc >= query.ToUtc || query.ToUtc - query.FromUtc > TimeSpan.FromDays(32))))
-                return BadRequest(new AuthError("VALIDATION_ERROR", "د نېټې ټاکنه سمه نه ده."));
+                return BadRequest(new AuthError("VALIDATION_ERROR", "Invalid date selection."));
 
             var now = DateTime.UtcNow;
             var todayInKabul = (now + KabulOffset).Date;
@@ -49,13 +55,64 @@ namespace RoghtiaSystem_JahidKawa.Server.Controllers
             return Ok(new TreatmentListResponse(items, total, query.Page, query.PageSize));
         }
 
+        [HttpGet("dashboard")]
+        public async Task<IActionResult> GetDashboard([FromQuery] DateOnly? date, [FromQuery] string? period, CancellationToken cancellationToken)
+        {
+            var now = DateTime.UtcNow;
+            var todayInKabul = (now + KabulOffset).Date;
+            var todayFromUtc = todayInKabul - KabulOffset;
+            var tomorrowFromUtc = todayFromUtc.AddDays(1);
+            var owned = OwnedTreatments.AsNoTracking();
+            var totalPatients = await context.Patients.CountAsync(p => p.UserId == LoggedInUserId, cancellationToken);
+            var todayPatients = await owned.Where(t => t.RecordedAtUtc >= todayFromUtc && t.RecordedAtUtc < tomorrowFromUtc)
+                .Select(t => t.PatientId).Distinct().CountAsync(cancellationToken);
+            var todayTreatments = await owned.CountAsync(t => t.RecordedAtUtc >= todayFromUtc && t.RecordedAtUtc < tomorrowFromUtc, cancellationToken);
+            var prescriptionsToday = await owned.CountAsync(t => t.RecordedAtUtc >= todayFromUtc && t.RecordedAtUtc < tomorrowFromUtc
+                && t.PrescriptionItems.Any(), cancellationToken);
+            var medicationCount = await context.Medications.CountAsync(m => m.UserId == LoggedInUserId, cancellationToken);
+            var recent = await owned.OrderByDescending(t => t.RecordedAtUtc).ThenByDescending(t => t.Id).Take(8)
+                .Select(t => new TreatmentSummaryResponse(t.Id, t.RecordedAtUtc,
+                    new TreatmentPatientResponse(t.Patient.Id, t.Patient.Code, t.Patient.Name, t.Patient.Phone,
+                        t.Patient.Age, t.Patient.Gender, t.Patient.Address), t.BloodPressure,
+                    t.PrescriptionItems.Count, t.ClinicalNotes.Count)).ToListAsync(cancellationToken);
+
+            var selectedDate = date ?? DateOnly.FromDateTime(todayInKabul);
+            var selectedDay = selectedDate.ToDateTime(TimeOnly.MinValue);
+            var selectedPeriod = period is "Day" or "Week" or "Month" ? period : "Week";
+            var daysBefore = selectedPeriod switch
+            {
+                "Day" => 0,
+                "Month" => selectedDay.Day - 1,
+                _ => ((int)selectedDay.DayOfWeek + 1) % 7
+            };
+            var chartStart = selectedDay.AddDays(-daysBefore);
+            var chartEnd = selectedPeriod == "Month" ? chartStart.AddMonths(1) : chartStart.AddDays(selectedPeriod == "Day" ? 1 : 7);
+            var chartFromUtc = chartStart - KabulOffset;
+            var chartToUtc = chartEnd - KabulOffset;
+            var chartRows = await owned.Where(t => t.RecordedAtUtc >= chartFromUtc && t.RecordedAtUtc < chartToUtc)
+                .GroupBy(t => t.RecordedAtUtc.AddMinutes(270).Date)
+                .Select(group => new { Date = group.Key, Count = group.Count(), WithPrescription = group.Count(t => t.PrescriptionItems.Any()) })
+                .ToListAsync(cancellationToken);
+            var bucketCount = selectedPeriod switch { "Day" => 1, "Month" => DateTime.DaysInMonth(chartStart.Year, chartStart.Month), _ => 7 };
+            var visits = Enumerable.Range(0, bucketCount).Select(offset =>
+            {
+                var bucketDate = chartStart.AddDays(offset);
+                var bucket = chartRows.SingleOrDefault(row => row.Date == bucketDate);
+                return new DashboardVisitDay(bucketDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+                    bucket?.Count ?? 0, bucket?.WithPrescription ?? 0);
+            }).ToList();
+            return Ok(new DashboardSummaryResponse(totalPatients, todayPatients, todayTreatments,
+                prescriptionsToday, medicationCount, visits, recent));
+        }
+
         [HttpGet("{id:int}")]
         public async Task<IActionResult> GetById(int id, CancellationToken cancellationToken)
         {
             var treatment = await OwnedTreatments.AsNoTracking().AsSplitQuery()
                 .Include(t => t.Patient).Include(t => t.PrescriptionItems).Include(t => t.ClinicalNotes).ThenInclude(l => l.ClinicalNote)
+                .Include(t => t.AdditionalInstructionItems).ThenInclude(link => link.AdditionalInstruction)
                 .SingleOrDefaultAsync(t => t.Id == id, cancellationToken);
-            return treatment == null ? NotFound(new AuthError("NOT_FOUND", "تداوي ونه موندل شوه.")) : Ok(ToResponse(treatment));
+            return treatment == null ? NotFound(new AuthError("NOT_FOUND", "Treatment not found.")) : Ok(ToResponse(treatment));
         }
 
         [HttpPost]
@@ -63,13 +120,20 @@ namespace RoghtiaSystem_JahidKawa.Server.Controllers
         [RequestSizeLimit(32 * 1024)]
         public async Task<IActionResult> Create([FromBody] TreatmentRequest request, CancellationToken cancellationToken)
         {
+            await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
             var (error, medications) = await ValidateReferences(request, cancellationToken);
             if (error != null) return error;
+            var instructionError = await ValidateInstructionReferences(request, cancellationToken);
+            if (instructionError != null) return instructionError;
+            var (stockError, deductedMedicationIds) = await ApplyStockChanges(request, [], cancellationToken);
+            if (stockError != null) return stockError;
             var treatment = new Treatment { UserId = LoggedInUserId, PatientId = request.PatientId!.Value,
-                RecordedAtUtc = DateTime.UtcNow, BloodPressure = request.BloodPressure?.Trim() ?? string.Empty };
-            ApplyChanges(treatment, request, medications);
+                RecordedAtUtc = DateTime.UtcNow, BloodPressure = request.BloodPressure?.Trim() ?? "120/80",
+                AdditionalInstructions = request.AdditionalInstructions?.Trim() ?? string.Empty };
+            ApplyChanges(treatment, request, medications, deductedMedicationIds);
             context.Treatments.Add(treatment);
             await context.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
             var saved = await LoadOwned(treatment.Id, cancellationToken);
             return CreatedAtAction(nameof(GetById), new { id = saved.Id }, ToResponse(saved));
         }
@@ -81,21 +145,29 @@ namespace RoghtiaSystem_JahidKawa.Server.Controllers
         {
             var treatment = await OwnedTreatments.Include(t => t.PrescriptionItems).Include(t => t.ClinicalNotes)
                 .SingleOrDefaultAsync(t => t.Id == id, cancellationToken);
-            if (treatment == null) return NotFound(new AuthError("NOT_FOUND", "تداوي ونه موندل شوه."));
+            if (treatment == null) return NotFound(new AuthError("NOT_FOUND", "Treatment not found."));
             var (error, medications) = await ValidateReferences(request, cancellationToken);
             if (error != null) return error;
+            var instructionError = await ValidateInstructionReferences(request, cancellationToken);
+            if (instructionError != null) return instructionError;
 
             // Removing old rows before inserting their replacements avoids the unique position index.
             // Both saves are in one transaction, so an invalid replacement never erases a prescription.
             await using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
+            var oldItems = treatment.PrescriptionItems.ToList();
+            var (stockError, deductedMedicationIds) = await ApplyStockChanges(request, oldItems, cancellationToken);
+            if (stockError != null) return stockError;
             context.PrescriptionItems.RemoveRange(treatment.PrescriptionItems);
             context.TreatmentClinicalNotes.RemoveRange(treatment.ClinicalNotes);
+            context.TreatmentAdditionalInstructions.RemoveRange(treatment.AdditionalInstructionItems);
             await context.SaveChangesAsync(cancellationToken);
             treatment.PrescriptionItems.Clear();
             treatment.ClinicalNotes.Clear();
+            treatment.AdditionalInstructionItems.Clear();
             treatment.PatientId = request.PatientId!.Value;
-            treatment.BloodPressure = request.BloodPressure?.Trim() ?? string.Empty;
-            ApplyChanges(treatment, request, medications);
+            treatment.BloodPressure = request.BloodPressure?.Trim() ?? "120/80";
+            treatment.AdditionalInstructions = request.AdditionalInstructions?.Trim() ?? string.Empty;
+            ApplyChanges(treatment, request, medications, deductedMedicationIds);
             await context.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
             return Ok(ToResponse(await LoadOwned(id, cancellationToken)));
@@ -106,23 +178,64 @@ namespace RoghtiaSystem_JahidKawa.Server.Controllers
         {
             var ownerId = LoggedInUserId;
             if (!await context.Patients.AsNoTracking().AnyAsync(p => p.Id == request.PatientId && p.UserId == ownerId, cancellationToken))
-                return (BadRequest(new AuthError("VALIDATION_ERROR", "خپل ناروغ وټاکئ.")), []);
+                return (BadRequest(new AuthError("VALIDATION_ERROR", "Select one of your patients.")), []);
             var noteIds = request.ClinicalNoteIds!;
             if (noteIds.Any(id => id < 1) || noteIds.Distinct().Count() != noteIds.Count ||
                 await context.ClinicalNotes.CountAsync(n => n.UserId == ownerId && noteIds.Contains(n.Id), cancellationToken) != noteIds.Count)
-                return (BadRequest(new AuthError("VALIDATION_ERROR", "کلینیکي یادښتونه سم نه دي.")), []);
+                return (BadRequest(new AuthError("VALIDATION_ERROR", "Invalid clinical notes.")), []);
             var items = request.PrescriptionItems!;
-            if (items.Any(item => string.IsNullOrWhiteSpace(item.Duration)))
-                return (BadRequest(new AuthError("VALIDATION_ERROR", "د درملو موده ولیکئ.")), []);
+            if (items.Any(item => string.IsNullOrWhiteSpace(item.Duration) || !AllowedFrequencies.Contains(item.Frequency ?? string.Empty)))
+                return (BadRequest(new AuthError("VALIDATION_ERROR", "Select a valid frequency and enter the medication duration.")), []);
             var medicationIds = items.Select(item => item.MedicationId!.Value).Distinct().ToList();
             var medications = await context.Medications.AsNoTracking().Where(m => m.UserId == ownerId && medicationIds.Contains(m.Id))
                 .ToDictionaryAsync(m => m.Id, cancellationToken);
             if (medications.Count != medicationIds.Count)
-                return (BadRequest(new AuthError("VALIDATION_ERROR", "خپل ثبت شوي درمل وټاکئ.")), []);
+                return (BadRequest(new AuthError("VALIDATION_ERROR", "Select your registered medications.")), []);
             return (null, medications);
         }
 
-        private static void ApplyChanges(Treatment treatment, TreatmentRequest request, Dictionary<int, Medication> medications)
+        private async Task<IActionResult?> ValidateInstructionReferences(TreatmentRequest request, CancellationToken cancellationToken)
+        {
+            var ids = request.AdditionalInstructionIds!;
+            if (ids.Any(id => id < 1) || ids.Distinct().Count() != ids.Count)
+                return BadRequest(new AuthError("VALIDATION_ERROR", "Invalid additional instructions."));
+            var count = await context.AdditionalInstructions.AsNoTracking()
+                .CountAsync(item => item.UserId == LoggedInUserId && ids.Contains(item.Id), cancellationToken);
+            return count == ids.Count ? null : BadRequest(new AuthError("VALIDATION_ERROR", "Invalid additional instructions."));
+        }
+
+        private async Task<(IActionResult? Error, HashSet<int> DeductedMedicationIds)> ApplyStockChanges(
+            TreatmentRequest request, IReadOnlyCollection<PrescriptionItem> oldItems, CancellationToken cancellationToken)
+        {
+            var ownerId = LoggedInUserId;
+            foreach (var restored in oldItems.Where(item => item.StockDeducted).GroupBy(item => item.MedicationId)
+                .Select(group => new { MedicationId = group.Key, Dose = group.Sum(item => (long)item.Dose) }))
+            {
+                if (restored.Dose > int.MaxValue)
+                    return (BadRequest(new AuthError("VALIDATION_ERROR", "Medication dose is too large.")), []);
+                await context.Medications.Where(m => m.Id == restored.MedicationId && m.UserId == ownerId)
+                    .ExecuteUpdateAsync(update => update.SetProperty(m => m.Quantity, m => m.Quantity + (int)restored.Dose), cancellationToken);
+            }
+
+            var deducted = new HashSet<int>();
+            foreach (var requested in request.PrescriptionItems!.GroupBy(item => item.MedicationId!.Value)
+                .Select(group => new { MedicationId = group.Key, Dose = group.Sum(item => (long)item.Dose!.Value) }))
+            {
+                if (requested.Dose > int.MaxValue)
+                    return (BadRequest(new AuthError("VALIDATION_ERROR", "Medication dose is too large.")), []);
+                var dose = (int)requested.Dose;
+                var changed = await context.Medications
+                    .Where(m => m.Id == requested.MedicationId && m.UserId == ownerId && m.Quantity >= dose)
+                    .ExecuteUpdateAsync(update => update.SetProperty(m => m.Quantity, m => m.Quantity - dose), cancellationToken);
+                if (changed == 1) deducted.Add(requested.MedicationId);
+                else if (!request.AllowInsufficientStock)
+                    return (Conflict(new AuthError("INSUFFICIENT_STOCK", "The selected medication has insufficient stock for this dose.")), []);
+            }
+            return (null, deducted);
+        }
+
+        private static void ApplyChanges(Treatment treatment, TreatmentRequest request, Dictionary<int, Medication> medications,
+            HashSet<int> deductedMedicationIds)
         {
             var items = request.PrescriptionItems!;
             for (var index = 0; index < items.Count; index++)
@@ -130,22 +243,33 @@ namespace RoghtiaSystem_JahidKawa.Server.Controllers
                 var item = items[index];
                 var medication = medications[item.MedicationId!.Value];
                 treatment.PrescriptionItems.Add(new PrescriptionItem { Position = index + 1, MedicationId = medication.Id,
-                    MedicationName = medication.Name, MedicationType = medication.Type, Duration = item.Duration!.Trim(), Refills = item.Refills!.Value });
+                    MedicationName = medication.Name, MedicationType = medication.Type, Dose = item.Dose!.Value,
+                    StockDeducted = deductedMedicationIds.Contains(medication.Id), Frequency = item.Frequency!, Duration = item.Duration!.Trim() });
             }
             foreach (var noteId in request.ClinicalNoteIds!) treatment.ClinicalNotes.Add(new TreatmentClinicalNote { ClinicalNoteId = noteId });
+            foreach (var instructionId in request.AdditionalInstructionIds!)
+                treatment.AdditionalInstructionItems.Add(new TreatmentAdditionalInstruction { AdditionalInstructionId = instructionId });
         }
 
         private async Task<Treatment> LoadOwned(int id, CancellationToken cancellationToken)
             => await OwnedTreatments.AsNoTracking().AsSplitQuery().Include(t => t.Patient)
                 .Include(t => t.PrescriptionItems).Include(t => t.ClinicalNotes).ThenInclude(l => l.ClinicalNote)
+                .Include(t => t.AdditionalInstructionItems).ThenInclude(link => link.AdditionalInstruction)
                 .SingleAsync(t => t.Id == id, cancellationToken);
 
         private static TreatmentResponse ToResponse(Treatment treatment) => new(treatment.Id, treatment.RecordedAtUtc,
             new TreatmentPatientResponse(treatment.Patient.Id, treatment.Patient.Code, treatment.Patient.Name,
                 treatment.Patient.Phone, treatment.Patient.Age, treatment.Patient.Gender, treatment.Patient.Address),
-            treatment.BloodPressure, treatment.ClinicalNotes.OrderBy(n => n.ClinicalNoteId)
+            treatment.BloodPressure, treatment.AdditionalInstructions, treatment.ClinicalNotes.OrderBy(n => n.ClinicalNoteId)
                 .Select(n => new ClinicalNoteResponse(n.ClinicalNoteId, n.ClinicalNote.Text)).ToList(),
+            treatment.AdditionalInstructionItems.OrderBy(item => item.AdditionalInstructionId)
+                .Select(item => new AdditionalInstructionResponse(item.AdditionalInstructionId, item.AdditionalInstruction.Text)).ToList(),
             treatment.PrescriptionItems.OrderBy(i => i.Position).Select(i => new PrescriptionItemResponse(i.Id, i.Position,
-                i.MedicationId, i.MedicationName, i.MedicationType, i.Duration, i.Refills)).ToList());
+                i.MedicationId, i.MedicationName, i.MedicationType, i.Dose, i.Frequency, i.Duration)).ToList());
     }
+
+    public record DashboardVisitDay(string Date, int Visits, int Prescriptions);
+    public record DashboardSummaryResponse(int TotalPatients, int PatientsToday, int TreatmentsToday,
+        int PrescriptionsToday, int TotalMedications, IReadOnlyList<DashboardVisitDay> Visits,
+        IReadOnlyList<TreatmentSummaryResponse> RecentTreatments);
 }

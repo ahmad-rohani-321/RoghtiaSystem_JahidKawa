@@ -46,13 +46,13 @@ namespace RoghtiaSystem_JahidKawa.Server.Controllers
         {
             var doctor = await context.DoctorInformation.SingleOrDefaultAsync(d => d.LoggedInUserId == LoggedInUserId, cancellationToken);
             if (create && doctor != null)
-                return Conflict(new AuthError("DOCTOR_INFORMATION_EXISTS", "ستاسو معلومات مخکې ثبت شوي دي. مهرباني وکړئ پاڼه تازه کړئ."));
+                return Conflict(new AuthError("DOCTOR_INFORMATION_EXISTS", "Your information already exists. Please refresh the page."));
             if (!create && doctor == null)
-                return NotFound(new AuthError("NOT_FOUND", "ستاسو معلومات ونه موندل شول. مهرباني وکړئ پاڼه تازه کړئ."));
+                return NotFound(new AuthError("NOT_FOUND", "Your information was not found. Please refresh the page."));
             if ((form.RemoveDoctorPhoto && form.DoctorPhoto != null)
                 || (form.RemoveDoctorLogo && form.DoctorLogo != null)
                 || (form.RemoveHospitalLogo && form.HospitalLogo != null))
-                return BadRequest(new AuthError("VALIDATION_ERROR", "یو انځور په یو وخت کې نه شي بدل او لرې کېدای."));
+                return BadRequest(new AuthError("VALIDATION_ERROR", "An image cannot be replaced and removed at the same time."));
 
             byte[]? doctorPhoto, doctorLogo, hospitalLogo;
             try
@@ -86,11 +86,11 @@ namespace RoghtiaSystem_JahidKawa.Server.Controllers
             catch (DbUpdateException exception) when (create && exception.InnerException is SqliteException { SqliteErrorCode: 19 })
             {
                 // The owner primary key also protects against concurrent first saves.
-                return Conflict(new AuthError("DOCTOR_INFORMATION_EXISTS", "ستاسو معلومات مخکې ثبت شوي دي. مهرباني وکړئ پاڼه تازه کړئ."));
+                return Conflict(new AuthError("DOCTOR_INFORMATION_EXISTS", "Your information already exists. Please refresh the page."));
             }
             catch (DbUpdateConcurrencyException)
             {
-                return NotFound(new AuthError("NOT_FOUND", "ستاسو معلومات بدل شوي دي. مهرباني وکړئ پاڼه تازه کړئ."));
+                return NotFound(new AuthError("NOT_FOUND", "Your information has changed. Please refresh the page."));
             }
             return Ok(ToResponse(doctor));
         }
@@ -124,7 +124,7 @@ namespace RoghtiaSystem_JahidKawa.Server.Controllers
                 _ => null
             };
             if (bytes == null || DoctorImages.GetContentType(bytes) is not { } contentType)
-                return NotFound(new AuthError("NOT_FOUND", "انځور ونه موندل شو."));
+                return NotFound(new AuthError("NOT_FOUND", "Image not found."));
             Response.Headers["X-Content-Type-Options"] = "nosniff";
             return File(bytes, contentType);
         }

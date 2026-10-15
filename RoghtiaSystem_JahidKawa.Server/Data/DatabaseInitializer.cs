@@ -8,7 +8,19 @@ namespace RoghtiaSystem_JahidKawa.Server.Data
     {
         public static async Task InitializeAsync(MainDbContext context)
         {
-            await context.Database.EnsureCreatedAsync();
+            // Fresh databases use the checked-in migrations, so dotnet ef database update
+            // and normal startup create the same schema and migration history.
+            await context.Database.OpenConnectionAsync();
+            bool hasUsers;
+            try
+            {
+                await using var command = context.Database.GetDbConnection().CreateCommand();
+                command.CommandText = "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'Users')";
+                hasUsers = Convert.ToInt32(await command.ExecuteScalarAsync()) != 0;
+            }
+            finally { await context.Database.CloseConnectionAsync(); }
+            if (!hasUsers) await context.Database.MigrateAsync();
+
             await context.Database.OpenConnectionAsync();
             try
             {
@@ -108,6 +120,7 @@ namespace RoghtiaSystem_JahidKawa.Server.Data
                     PatientId INTEGER NOT NULL,
                     RecordedAtUtc TEXT NOT NULL,
                     BloodPressure TEXT NOT NULL,
+                    AdditionalInstructions TEXT NOT NULL DEFAULT '',
                     FOREIGN KEY (UserId) REFERENCES Users (Id) ON DELETE RESTRICT,
                     FOREIGN KEY (PatientId) REFERENCES Patients (Id) ON DELETE RESTRICT
                 );
@@ -120,8 +133,10 @@ namespace RoghtiaSystem_JahidKawa.Server.Data
                     Position INTEGER NOT NULL,
                     MedicationName TEXT NOT NULL,
                     MedicationType TEXT NOT NULL,
+                    Dose INTEGER NOT NULL CONSTRAINT CK_PrescriptionItems_Dose CHECK (Dose > 0),
+                    StockDeducted INTEGER NOT NULL DEFAULT 0,
+                    Frequency TEXT NOT NULL DEFAULT 'Once daily',
                     Duration TEXT NOT NULL,
-                    Refills INTEGER NOT NULL CONSTRAINT CK_PrescriptionItems_Refills CHECK (Refills BETWEEN 0 AND 100),
                     FOREIGN KEY (TreatmentId) REFERENCES Treatments (Id) ON DELETE CASCADE,
                     FOREIGN KEY (MedicationId) REFERENCES Medications (Id) ON DELETE RESTRICT
                 );
@@ -135,7 +150,34 @@ namespace RoghtiaSystem_JahidKawa.Server.Data
                     FOREIGN KEY (ClinicalNoteId) REFERENCES ClinicalNotes (Id) ON DELETE RESTRICT
                 );
                 CREATE INDEX IF NOT EXISTS IX_TreatmentClinicalNotes_ClinicalNoteId ON TreatmentClinicalNotes (ClinicalNoteId);
+                CREATE TABLE IF NOT EXISTS AdditionalInstructions (
+                    Id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+                    UserId INTEGER NOT NULL,
+                    Text TEXT NOT NULL,
+                    FOREIGN KEY (UserId) REFERENCES Users (Id) ON DELETE RESTRICT
+                );
+                CREATE UNIQUE INDEX IF NOT EXISTS IX_AdditionalInstructions_UserId_Text ON AdditionalInstructions (UserId, Text);
+                CREATE TABLE IF NOT EXISTS TreatmentAdditionalInstructions (
+                    TreatmentId INTEGER NOT NULL,
+                    AdditionalInstructionId INTEGER NOT NULL,
+                    PRIMARY KEY (TreatmentId, AdditionalInstructionId),
+                    FOREIGN KEY (TreatmentId) REFERENCES Treatments (Id) ON DELETE CASCADE,
+                    FOREIGN KEY (AdditionalInstructionId) REFERENCES AdditionalInstructions (Id) ON DELETE RESTRICT
+                );
+                CREATE INDEX IF NOT EXISTS IX_TreatmentAdditionalInstructions_AdditionalInstructionId ON TreatmentAdditionalInstructions (AdditionalInstructionId);
                 """);
+                var treatmentColumns = await GetColumnsAsync(connection, transaction, "Treatments");
+                if (!treatmentColumns.Contains("AdditionalInstructions"))
+                    await ExecuteAsync(connection, transaction, "ALTER TABLE Treatments ADD COLUMN AdditionalInstructions TEXT NOT NULL DEFAULT ''");
+                var prescriptionColumns = await GetColumnsAsync(connection, transaction, "PrescriptionItems");
+                if (!prescriptionColumns.Contains("Dose"))
+                    await ExecuteAsync(connection, transaction, "ALTER TABLE PrescriptionItems ADD COLUMN Dose INTEGER NOT NULL DEFAULT 1 CONSTRAINT CK_PrescriptionItems_Dose CHECK (Dose > 0)");
+                if (!prescriptionColumns.Contains("StockDeducted"))
+                    await ExecuteAsync(connection, transaction, "ALTER TABLE PrescriptionItems ADD COLUMN StockDeducted INTEGER NOT NULL DEFAULT 0");
+                if (!prescriptionColumns.Contains("Frequency"))
+                    await ExecuteAsync(connection, transaction, "ALTER TABLE PrescriptionItems ADD COLUMN Frequency TEXT NOT NULL DEFAULT 'Once daily'");
+                if (prescriptionColumns.Contains("Refills"))
+                    await RemoveLegacyPrescriptionRefillsAsync(connection, transaction);
                 if (legacyTreatments) await CopyLegacyTreatmentsAsync(connection, transaction);
                 await transaction.CommitAsync();
             }
@@ -159,6 +201,34 @@ namespace RoghtiaSystem_JahidKawa.Server.Data
             await using var reader = await command.ExecuteReaderAsync();
             while (await reader.ReadAsync()) columns.Add(reader.GetString(1));
             return columns;
+        }
+
+        private static async Task RemoveLegacyPrescriptionRefillsAsync(DbConnection connection, DbTransaction transaction)
+        {
+            await ExecuteAsync(connection, transaction, """
+                CREATE TABLE PrescriptionItems_WithoutRefills (
+                    Id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+                    TreatmentId INTEGER NOT NULL,
+                    MedicationId INTEGER NOT NULL,
+                    Position INTEGER NOT NULL,
+                    MedicationName TEXT NOT NULL,
+                    MedicationType TEXT NOT NULL,
+                    Dose INTEGER NOT NULL CONSTRAINT CK_PrescriptionItems_Dose CHECK (Dose > 0),
+                    StockDeducted INTEGER NOT NULL DEFAULT 0,
+                    Frequency TEXT NOT NULL DEFAULT 'Once daily',
+                    Duration TEXT NOT NULL,
+                    FOREIGN KEY (TreatmentId) REFERENCES Treatments (Id) ON DELETE CASCADE,
+                    FOREIGN KEY (MedicationId) REFERENCES Medications (Id) ON DELETE RESTRICT
+                );
+                INSERT INTO PrescriptionItems_WithoutRefills
+                    (Id, TreatmentId, MedicationId, Position, MedicationName, MedicationType, Dose, StockDeducted, Frequency, Duration)
+                SELECT Id, TreatmentId, MedicationId, Position, MedicationName, MedicationType, Dose, StockDeducted, Frequency, Duration
+                FROM PrescriptionItems;
+                DROP TABLE PrescriptionItems;
+                ALTER TABLE PrescriptionItems_WithoutRefills RENAME TO PrescriptionItems;
+                CREATE UNIQUE INDEX IX_PrescriptionItems_TreatmentId_Position ON PrescriptionItems (TreatmentId, Position);
+                CREATE INDEX IX_PrescriptionItems_MedicationId ON PrescriptionItems (MedicationId);
+                """);
         }
 
         private static async Task<bool> PrepareLegacyTreatmentsAsync(DbConnection connection, DbTransaction transaction)
@@ -210,7 +280,7 @@ namespace RoghtiaSystem_JahidKawa.Server.Data
                 """);
             await ExecuteAsync(connection, transaction, """
                 INSERT INTO PrescriptionItems
-                    (Id, TreatmentId, MedicationId, Position, MedicationName, MedicationType, Duration, Refills)
+                    (Id, TreatmentId, MedicationId, Position, MedicationName, MedicationType, Dose, StockDeducted, Duration)
                 SELECT item.Id, item.TreatmentId,
                     COALESCE(
                         (SELECT valid.Id FROM Medications valid WHERE valid.Id = item.MedicationId AND valid.UserId = old.UserId),
@@ -222,7 +292,7 @@ namespace RoghtiaSystem_JahidKawa.Server.Data
                     ROW_NUMBER() OVER (PARTITION BY item.TreatmentId ORDER BY item.SortOrder, item.Id),
                     COALESCE(NULLIF(TRIM(item.Name), ''), 'Legacy medication ' || item.Id),
                     COALESCE(NULLIF(TRIM(item.Type), ''), 'Other'),
-                    item.Duration, 0
+                    1, 0, item.Duration
                 FROM LegacyPrescriptionItems item
                 JOIN LegacyTreatments old ON old.Id = item.TreatmentId
                 JOIN Treatments current ON current.Id = old.Id
@@ -230,8 +300,8 @@ namespace RoghtiaSystem_JahidKawa.Server.Data
 
             foreach (var (column, label) in new[]
             {
-                ("Symptoms", "نښې"), ("Diagnosis", "تشخیص"),
-                ("Notes", "یادښتونه"), ("PrescriptionNotes", "د نسخې لارښوونې")
+                ("Symptoms", "Symptoms"), ("Diagnosis", "Diagnosis"),
+                ("Notes", "Notes"), ("PrescriptionNotes", "Prescription instructions")
             })
             {
                 if (!(await GetColumnsAsync(connection, transaction, "LegacyTreatments")).Contains(column)) continue;

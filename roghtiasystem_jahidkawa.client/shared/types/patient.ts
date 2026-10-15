@@ -23,4 +23,7 @@ export interface PatientQuery {
   page?: number
   pageSize?: number
   search?: string
+  name?: string
+  phone?: string
+  gender?: string
 }

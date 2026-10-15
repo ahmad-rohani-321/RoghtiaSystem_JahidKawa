@@ -14,7 +14,7 @@ const pending = ref(false)
 const serviceMessage = ref('')
 const state = reactive({ name: '', phone: '', age: '' as number | string, gender: '', address: '' })
 const editing = computed(() => props.patient !== null)
-const genders = [{ label: 'نارینه', value: 'Male' }, { label: 'ښځینه', value: 'Female' }, { label: 'نور', value: 'Other' }]
+const genders = [{ label: 'Male', value: 'Male' }, { label: 'Female', value: 'Female' }, { label: 'Other', value: 'Other' }]
 
 function populate() {
   Object.assign(state, {
@@ -30,14 +30,14 @@ function populate() {
 
 function validate(value: typeof state): FormError[] {
   const errors: FormError[] = []
-  if (!value.name.trim()) errors.push({ name: 'name', message: 'د ناروغ نوم ولیکئ.' })
-  else if (value.name.trim().length > 200) errors.push({ name: 'name', message: 'نوم باید تر 200 تورو ډېر نه وي.' })
-  if (value.phone.length > 32) errors.push({ name: 'phone', message: 'ټیلیفون باید تر 32 تورو ډېر نه وي.' })
-  if (!genders.some(item => item.value === value.gender)) errors.push({ name: 'gender', message: 'جنسیت وټاکئ.' })
+  if (!value.name.trim()) errors.push({ name: 'name', message: 'Enter the patient name.' })
+  else if (value.name.trim().length > 200) errors.push({ name: 'name', message: 'Name must not exceed 200 characters.' })
+  if (value.phone.length > 32) errors.push({ name: 'phone', message: 'Phone must not exceed 32 characters.' })
+  if (!genders.some(item => item.value === value.gender)) errors.push({ name: 'gender', message: 'Select a gender.' })
   if (String(value.age).trim() === '' || !Number.isInteger(Number(value.age)) || Number(value.age) < 0 || Number(value.age) > 150) {
-    errors.push({ name: 'age', message: 'عمر باید د 0 او 150 ترمنځ بشپړ شمېر وي.' })
+    errors.push({ name: 'age', message: 'Age must be a whole number between 0 and 150.' })
   }
-  if (value.address.length > 1000) errors.push({ name: 'address', message: 'پته باید تر 1000 تورو ډېره نه وي.' })
+  if (value.address.length > 1000) errors.push({ name: 'address', message: 'Address must not exceed 1000 characters.' })
   return errors
 }
 
@@ -59,27 +59,27 @@ async function save() {
     const status = failure.statusCode || failure.status
     const code = failure.data?.data?.code || failure.data?.code
     const messages: Record<string, string> = {
-      VALIDATION_ERROR: 'د فورمې معلومات وګورئ او بیا هڅه وکړئ.',
-      NOT_FOUND: 'دا ناروغ ونه موندل شو. لېست تازه کړئ او بیا هڅه وکړئ.',
-      FORBIDDEN: 'تاسې د دې بدلون اجازه نه لرئ.',
-      INVALID_ORIGIN: 'غوښتنه ونه منل شوه. پاڼه تازه کړئ او بیا هڅه وکړئ.',
-      TOO_MANY_REQUESTS: 'ډېرې هڅې شوې دي. لږ وروسته بیا هڅه وکړئ.'
+      VALIDATION_ERROR: 'Check the form details and try again.',
+      NOT_FOUND: 'Patient not found. Refresh the list and try again.',
+      FORBIDDEN: 'You do not have permission to make this change.',
+      INVALID_ORIGIN: 'Request rejected. Refresh the page and try again.',
+      TOO_MANY_REQUESTS: 'Too many attempts. Please try again later.'
     }
     if (status === 401) {
       open.value = false
-      toast.add({ title: 'بیا ننوځئ', description: 'ستاسې ناسته پای ته رسېدلې ده. بیا خپل حساب ته ننوځئ.', color: 'warning' })
+      toast.add({ title: 'Sign in again', description: 'Your session has expired. Please sign in again.', color: 'warning' })
       try { await auth.refresh() } catch { /* Navigation verifies the session again. */ }
       await nuxtApp.runWithContext(() => navigateTo('/login'))
       return
     }
-    serviceMessage.value = messages[code || ''] || (status === 403 ? messages.FORBIDDEN! : status === 429 ? messages.TOO_MANY_REQUESTS! : 'معلومات خوندي نه شول. مهرباني وکړئ بیا هڅه وکړئ.')
-    toast.add({ title: 'ناروغ خوندي نه شو', description: serviceMessage.value, color: 'error' })
+    serviceMessage.value = messages[code || ''] || (status === 403 ? messages.FORBIDDEN! : status === 429 ? messages.TOO_MANY_REQUESTS! : 'Unable to save information. Please try again.')
+    toast.add({ title: 'Patient could not be saved', description: serviceMessage.value, color: 'error' })
   } finally {
     pending.value = false
   }
   if (saved) {
     open.value = false
-    toast.add({ title: created ? 'ناروغ ثبت شو' : 'د ناروغ معلومات تازه شول', color: 'success', icon: 'i-lucide-circle-check' })
+    toast.add({ title: created ? 'Patient registered' : 'Patient information updated', color: 'success', icon: 'i-lucide-circle-check' })
     emit('saved', saved, created)
   }
 }
@@ -97,41 +97,41 @@ watch(open, (value) => {
 <template>
   <UModal
     :open="open"
-    :title="editing ? 'د ناروغ سمون' : 'نوی ناروغ'"
-    description="د ناروغ اړوند معلومات ولیکئ."
+    :title="editing ? 'Edit patient' : 'New patient'"
+    description="Enter the patient information."
     :dismissible="!pending"
-    :close="pending ? false : { 'aria-label': 'تړل' }"
-    :content="{ dir: 'rtl' }"
+    :close="pending ? false : { 'aria-label': 'Close' }"
+    :content="{ dir: 'ltr' }"
     :ui="{ content: 'max-w-2xl min-w-0', wrapper: 'min-w-0 pe-8', body: 'min-w-0 min-h-0', title: 'text-lg break-words', description: 'text-base leading-7 break-words' }"
     @update:open="value => { if (!pending) open = value }"
   >
     <template #body>
       <UForm ref="patientForm" :state="state" :validate="validate" :disabled="pending" :loading-auto="false" novalidate class="patient-form" @submit="save" @error="focusError">
         <p class="patient-owner">
-          <template v-if="patient">کوډ: <bdi>{{ patient.code }}</bdi> · شمېره: {{ localNumber(patient.id) }}</template>
-          <template v-else>د ناروغ کوډ په اتومات ډول جوړېږي.</template>
+          <template v-if="patient">Code: <bdi>{{ patient.code }}</bdi> · ID: {{ localNumber(patient.id) }}</template>
+          <template v-else>The patient code is generated automatically.</template>
         </p>
-        <UFormField name="name" label="د ناروغ نوم" size="lg" required :ui="{ label: 'text-base' }">
+        <UFormField name="name" label="Patient name" size="lg" required :ui="{ label: 'text-base' }">
           <UInput v-model="state.name" name="name" dir="auto" :maxlength="200" autocomplete="off" size="xl" class="w-full" :ui="{ base: 'patient-input' }" />
         </UFormField>
         <div class="patient-form-grid">
-          <UFormField name="phone" label="ټیلیفون" hint="اختیاري" size="lg" :ui="{ label: 'text-base' }">
+          <UFormField name="phone" label="Phone" hint="Optional" size="lg" :ui="{ label: 'text-base' }">
             <UInput v-model="state.phone" name="phone" type="tel" dir="ltr" :maxlength="32" size="xl" class="w-full" :ui="{ base: 'patient-input' }" />
           </UFormField>
-          <UFormField name="age" label="عمر (کلونه)" size="lg" required :ui="{ label: 'text-base' }">
+          <UFormField name="age" label="Age (years)" size="lg" required :ui="{ label: 'text-base' }">
             <UInput v-model="state.age" name="age" type="number" inputmode="numeric" :min="0" :max="150" :step="1" size="xl" class="w-full" :ui="{ base: 'patient-input' }" />
           </UFormField>
-          <UFormField name="gender" label="جنسیت" size="lg" required :ui="{ label: 'text-base' }">
-            <USelect v-model="state.gender" name="gender" :items="genders" placeholder="جنسیت وټاکئ" size="xl" class="w-full" :ui="{ base: 'patient-input' }" />
+          <UFormField name="gender" label="Gender" size="lg" required :ui="{ label: 'text-base' }">
+            <USelect v-model="state.gender" name="gender" :items="genders" placeholder="Select gender" size="xl" class="w-full" :ui="{ base: 'patient-input' }" />
           </UFormField>
         </div>
-        <UFormField name="address" label="پته" hint="اختیاري" size="lg" :ui="{ label: 'text-base' }">
+        <UFormField name="address" label="Address" hint="Optional" size="lg" :ui="{ label: 'text-base' }">
           <UTextarea v-model="state.address" name="address" dir="auto" :maxlength="1000" :rows="3" size="xl" class="w-full" :ui="{ base: 'patient-input patient-address-input' }" />
         </UFormField>
         <p v-if="serviceMessage" class="patient-message" role="alert">{{ serviceMessage }}</p>
         <div class="patient-form-actions">
-          <UButton type="submit" size="lg" icon="i-lucide-save" :loading="pending" :disabled="pending">{{ editing ? 'بدلونونه خوندي کړئ' : 'ناروغ ثبت کړئ' }}</UButton>
-          <UButton type="button" size="lg" color="neutral" variant="outline" :disabled="pending" @click="open = false">بندول</UButton>
+          <UButton type="submit" size="lg" icon="i-lucide-save" :loading="pending" :disabled="pending">{{ editing ? 'Save changes' : 'Register patient' }}</UButton>
+          <UButton type="button" size="lg" color="neutral" variant="outline" :disabled="pending" @click="open = false">Cancel</UButton>
         </div>
       </UForm>
     </template>

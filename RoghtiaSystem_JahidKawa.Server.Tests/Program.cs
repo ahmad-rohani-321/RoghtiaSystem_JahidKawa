@@ -30,6 +30,7 @@ try
     var suffix = Guid.NewGuid().ToString("N")[..10];
     var userName = $"Clinician_{suffix}";
     const string password = "Secure🔒پټنوم123";
+    const string pinCode = "123456";
     string? sessionToken = null;
 
     await Check("Anonymous requests cannot access the current user", async () =>
@@ -40,8 +41,8 @@ try
 
     await Check("Registration initializes a fresh encrypted database and returns a safe user", async () =>
     {
-        var response = await Post(server.Client, "/api/auth/register", new { userName, password });
-        ExpectStatus(response.Status, HttpStatusCode.OK, response.Body);
+        var response = await Post(server.Client, "/api/auth/register", new { userName, password, pinCode });
+        ExpectStatusCode(response.Status, HttpStatusCode.OK, response.Body);
         sessionToken = ValidateAuthResponse(response.Json, userName);
         Expect(File.Exists(server.DatabasePath), "The isolated database was not created.");
         var header = new byte[16];
@@ -53,16 +54,16 @@ try
     await Check("Duplicate usernames are rejected regardless of case", async () =>
     {
         await ExpectError(server.Client, "/api/auth/register",
-            new { userName = userName.ToUpperInvariant(), password }, HttpStatusCode.Conflict, "USERNAME_TAKEN");
+            new { userName = userName.ToUpperInvariant(), password, pinCode }, HttpStatusCode.Conflict, "USERNAME_TAKEN");
     });
 
     await Check("Unicode canonical equivalents cannot create duplicate users", async () =>
     {
         var canonicalName = $"Tést_{suffix}";
-        var first = await Post(server.Client, "/api/auth/register", new { userName = canonicalName, password });
-        ExpectStatus(first.Status, HttpStatusCode.OK, first.Body);
+        var first = await Post(server.Client, "/api/auth/register", new { userName = canonicalName, password, pinCode });
+        ExpectStatusCode(first.Status, HttpStatusCode.OK, first.Body);
         await ExpectError(server.Client, "/api/auth/register",
-            new { userName = $"TE\u0301ST_{suffix.ToUpperInvariant()}", password },
+            new { userName = $"TE\u0301ST_{suffix.ToUpperInvariant()}", password, pinCode },
             HttpStatusCode.Conflict, "USERNAME_TAKEN");
     });
 
@@ -70,12 +71,12 @@ try
     {
         var raceName = $"Race_{suffix}";
         var results = await Task.WhenAll(
-            Post(server.Client, "/api/auth/register", new { userName = raceName, password }),
-            Post(server.Client, "/api/auth/register", new { userName = raceName.ToUpperInvariant(), password }));
+            Post(server.Client, "/api/auth/register", new { userName = raceName, password, pinCode }),
+            Post(server.Client, "/api/auth/register", new { userName = raceName.ToUpperInvariant(), password, pinCode }));
         Expect(results.Count(result => result.Status == HttpStatusCode.OK) == 1,
             "Concurrent registration did not produce exactly one success: " + string.Join(" | ", results.Select(result => result.Body)));
         var duplicate = results.Single(result => result.Status != HttpStatusCode.OK);
-        ExpectStatus(duplicate.Status, HttpStatusCode.Conflict, duplicate.Body);
+        ExpectStatusCode(duplicate.Status, HttpStatusCode.Conflict, duplicate.Body);
         ExpectErrorCode(duplicate.Json, "USERNAME_TAKEN");
     });
 
@@ -83,7 +84,7 @@ try
     {
         var response = await Post(server.Client, "/api/auth/login",
             new { userName = userName.ToLowerInvariant(), password, rememberMe = false });
-        ExpectStatus(response.Status, HttpStatusCode.OK, response.Body);
+        ExpectStatusCode(response.Status, HttpStatusCode.OK, response.Body);
         sessionToken = ValidateAuthResponse(response.Json, userName);
         ExpectLifetime(response.Json, TimeSpan.FromDays(1));
     });
@@ -91,7 +92,7 @@ try
     await Check("Remember Me receives the configured 30-day token lifetime", async () =>
     {
         var response = await Post(server.Client, "/api/auth/login", new { userName, password, rememberMe = true });
-        ExpectStatus(response.Status, HttpStatusCode.OK, response.Body);
+        ExpectStatusCode(response.Status, HttpStatusCode.OK, response.Body);
         ValidateAuthResponse(response.Json, userName);
         ExpectLifetime(response.Json, TimeSpan.FromDays(30));
     });
@@ -126,6 +127,54 @@ try
         ExpectNoSecrets(json);
     });
 
+    await Check("Patient codes are generated separately for each logged-in user", async () =>
+    {
+        var first = await AuthorizedJson(server.Client, HttpMethod.Post, "/api/patients", sessionToken!,
+            new { name = "Ahmad One", phone = "0701111111", age = 35, gender = "Male", address = "Kabul" });
+        ExpectStatusCode(first.Status, HttpStatusCode.Created, first.Body);
+        Expect(first.Json["code"]?.GetValue<string>() == "RT-1", "The first patient code is wrong.");
+        var second = await AuthorizedJson(server.Client, HttpMethod.Post, "/api/patients", sessionToken!,
+            new { name = "Ahmad Two", phone = "0702222222", age = 29, gender = "Female", address = "Herat" });
+        ExpectStatusCode(second.Status, HttpStatusCode.Created, second.Body);
+        Expect(second.Json["code"]?.GetValue<string>() == "RT-2", "The second patient code is wrong.");
+
+        var otherUserName = $"Other_{suffix}";
+        var other = await Post(server.Client, "/api/auth/register", new { userName = otherUserName, password, pinCode });
+        ExpectStatusCode(other.Status, HttpStatusCode.OK, other.Body);
+        var otherToken = ValidateAuthResponse(other.Json, otherUserName);
+        var otherPatient = await AuthorizedJson(server.Client, HttpMethod.Post, "/api/patients", otherToken,
+            new { name = "Other Patient", phone = "0703333333", age = 41, gender = "Male", address = "Kandahar" });
+        ExpectStatusCode(otherPatient.Status, HttpStatusCode.Created, otherPatient.Body);
+        Expect(otherPatient.Json["code"]?.GetValue<string>() == "RT-1", "The second user should have an independent code sequence.");
+
+        var ownCode = await AuthorizedJson(server.Client, HttpMethod.Get, "/api/patients/by-code/RT-1", sessionToken!);
+        ExpectStatusCode(ownCode.Status, HttpStatusCode.OK, ownCode.Body);
+        Expect(ownCode.Json["name"]?.GetValue<string>() == "Ahmad One", "Code lookup returned the wrong user's patient.");
+        var secondUserCode = await AuthorizedJson(server.Client, HttpMethod.Get, "/api/patients/by-code/RT-1", otherToken);
+        ExpectStatusCode(secondUserCode.Status, HttpStatusCode.OK, secondUserCode.Body);
+        Expect(secondUserCode.Json["name"]?.GetValue<string>() == "Other Patient", "Code lookup crossed user ownership.");
+        var inaccessibleCode = await AuthorizedJson(server.Client, HttpMethod.Get, "/api/patients/by-code/RT-2", otherToken);
+        ExpectStatusCode(inaccessibleCode.Status, HttpStatusCode.NotFound, inaccessibleCode.Body);
+        using var anonymous = await server.Client.GetAsync("/api/patients/by-code/RT-1");
+        ExpectStatus(anonymous, HttpStatusCode.Unauthorized);
+
+        var filtered = await AuthorizedJson(server.Client, HttpMethod.Get,
+            "/api/patients?name=Ahmad&phone=070111&gender=Male", sessionToken!);
+        ExpectStatusCode(filtered.Status, HttpStatusCode.OK, filtered.Body);
+        Expect(filtered.Json["total"]?.GetValue<int>() == 1 &&
+            filtered.Json["items"]?[0]?["name"]?.GetValue<string>() == "Ahmad One", "Combined patient filters returned incorrect results.");
+        var otherList = await AuthorizedJson(server.Client, HttpMethod.Get, "/api/patients?name=Ahmad", otherToken);
+        ExpectStatusCode(otherList.Status, HttpStatusCode.OK, otherList.Body);
+        Expect(otherList.Json["total"]?.GetValue<int>() == 0, "A patient filter exposed another user's record.");
+
+        var patientId = first.Json["id"]!.GetValue<int>();
+        var forbiddenUpdate = await AuthorizedJson(server.Client, HttpMethod.Put, $"/api/patients/{patientId}", otherToken,
+            new { name = "Changed", phone = "0701111111", age = 35, gender = "Male", address = "Kabul" });
+        ExpectStatusCode(forbiddenUpdate.Status, HttpStatusCode.NotFound, forbiddenUpdate.Body);
+        var unchanged = await AuthorizedJson(server.Client, HttpMethod.Get, $"/api/patients/{patientId}", sessionToken!);
+        Expect(unchanged.Json["name"]?.GetValue<string>() == "Ahmad One", "A different user changed the patient.");
+    });
+
     await Check("Tampered and expired signed tokens are rejected", async () =>
     {
         var pieces = sessionToken!.Split('.');
@@ -148,7 +197,7 @@ try
             HttpStatusCode.TooManyRequests, "TOO_MANY_REQUESTS");
     });
 
-    Console.WriteLine($"Passed {passed} authentication integration checks.");
+    Console.WriteLine($"Passed {passed} integration checks.");
     return 0;
 }
 catch (Exception error)
@@ -171,10 +220,21 @@ static async Task<(HttpStatusCode Status, JsonNode Json, string Body)> Post(Http
     return (response.StatusCode, JsonNode.Parse(body) ?? throw new Exception($"Empty JSON response from {route}."), body);
 }
 
+static async Task<(HttpStatusCode Status, JsonNode Json, string Body)> AuthorizedJson(
+    HttpClient client, HttpMethod method, string route, string token, object? value = null)
+{
+    using var request = new HttpRequestMessage(method, route);
+    request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+    if (value is not null) request.Content = JsonContent.Create(value);
+    using var response = await client.SendAsync(request);
+    var body = await response.Content.ReadAsStringAsync();
+    return (response.StatusCode, JsonNode.Parse(body) ?? throw new Exception($"Empty JSON response from {route}."), body);
+}
+
 static async Task ExpectError(HttpClient client, string route, object value, HttpStatusCode status, string code)
 {
     var response = await Post(client, route, value);
-    ExpectStatus(response.Status, status, response.Body);
+    ExpectStatusCode(response.Status, status, response.Body);
     ExpectErrorCode(response.Json, code);
     Expect(response.Json["token"] is null, "An unsuccessful request returned a token.");
     ExpectNoSecrets(response.Json);
@@ -198,7 +258,8 @@ static void ValidateUser(JsonNode json, string userName)
 {
     Expect(json["userName"]?.GetValue<string>() == userName, $"Unexpected username: {json}");
     Expect(json["id"] is not null && !string.IsNullOrWhiteSpace(json["id"]!.ToString()), "User ID is missing.");
-    Expect(json["roles"] is JsonArray roles && roles.Count == 0, "New users must not receive elevated roles.");
+    Expect(json["roles"] is JsonArray roles && roles.Count == 1 && roles[0]?.GetValue<string>() == "User",
+        "New users must only receive the User role.");
     Expect(json["permissions"] is JsonArray permissions && permissions.Count == 0,
         "New users must not receive elevated permissions.");
 }
@@ -208,7 +269,7 @@ static void ExpectNoSecrets(JsonNode node)
     if (node is JsonObject value)
         foreach (var field in value)
         {
-            Expect(!new[] { "password", "passwordHash", "passwordSalt", "securityStamp", "normalizedUserName" }
+            Expect(!new[] { "password", "passwordHash", "passwordSalt", "pinCode", "securityStamp", "normalizedUserName" }
                 .Contains(field.Key, StringComparer.OrdinalIgnoreCase), $"Sensitive field {field.Key} appeared in an API response.");
             if (field.Value is not null) ExpectNoSecrets(field.Value);
         }
@@ -267,8 +328,8 @@ static byte[] DecodeBase64Url(string value)
 }
 
 static string EncodeBase64Url(byte[] value) => Convert.ToBase64String(value).TrimEnd('=').Replace('+', '-').Replace('/', '_');
-static void ExpectStatus(HttpResponseMessage response, HttpStatusCode expected) => ExpectStatus(response.StatusCode, expected);
-static void ExpectStatus(HttpStatusCode actual, HttpStatusCode expected, string? body = null) =>
+static void ExpectStatus(HttpResponseMessage response, HttpStatusCode expected) => ExpectStatusCode(response.StatusCode, expected);
+static void ExpectStatusCode(HttpStatusCode actual, HttpStatusCode expected, string? body = null) =>
     Expect(actual == expected, $"Expected HTTP {(int)expected}, received {(int)actual}. {body}");
 static void Expect(bool condition, string message)
 {
@@ -328,7 +389,7 @@ sealed class TestServer : IAsyncDisposable
         start.Environment["DOTNET_ENVIRONMENT"] = "Testing";
         start.Environment["ASPNETCORE_URLS"] = $"http://127.0.0.1:{port}";
         start.Environment["ASPNETCORE_HOSTINGSTARTUPASSEMBLIES"] = "";
-        start.Environment["Jwt__SigningKey"] = signingKey;
+        start.Environment["Auth__SigningKey"] = signingKey;
         start.Environment["ConnectionStrings__MainDatabase"] = $"Data Source={databasePath};Password=isolated-auth-test-database;Mode=ReadWriteCreate";
         start.Environment["Auth__RateLimitPermitLimit"] = permitLimit.ToString();
         start.Environment["Logging__LogLevel__Default"] = "Warning";

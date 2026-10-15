@@ -18,11 +18,11 @@ function select(value: File | null | undefined) {
   localError.value = ''
   if (!value) return
   if (!['image/png', 'image/jpeg', 'image/webp'].includes(value.type)) {
-    localError.value = 'یوازې PNG، JPEG او WebP انځورونه منل کېږي.'
+    localError.value = 'Only PNG, JPEG and WebP images are accepted.'
     return
   }
   if (value.size > 2 * 1024 * 1024 || value.size === 0) {
-    localError.value = 'انځور باید تش نه وي او اندازه یې له 2 مېګابایټه زیاته نه وي.'
+    localError.value = 'Image must not be empty or larger than 2 MB.'
     return
   }
   file.value = value
@@ -56,20 +56,20 @@ onBeforeUnmount(releasePreview)
         <img v-if="preview && !imageFailed" :src="preview" :alt="label" @error="imageFailed = true">
         <div v-else class="image-placeholder">
           <UIcon :name="portrait ? 'i-lucide-user-round' : 'i-lucide-image'" aria-hidden="true" />
-          <span>{{ removed ? 'انځور به لرې شي' : 'انځور نه دی ټاکل شوی' }}</span>
+          <span>{{ removed ? 'Image will be removed' : 'No image selected' }}</span>
         </div>
       </div>
-      <p class="image-description">PNG، JPEG یا WebP · تر 2 مېګابایټه</p>
+      <p class="image-description">PNG, JPEG or WebP · up to 2 MB</p>
       <p v-if="file" class="image-filename" dir="auto">{{ file.name }}</p>
       <UFileUpload :model-value="file" :name="name" :disabled="disabled" accept="image/png,image/jpeg,image/webp" :multiple="false" :preview="false" :dropzone="false" class="w-full min-w-0" reset @update:model-value="select">
         <template #default="{ open: chooseFile }">
-          <UButton type="button" color="neutral" variant="outline" size="lg" block icon="i-lucide-upload" :disabled="disabled" :aria-label="`${label}: انځور وټاکئ`" :aria-invalid="!!localError" :aria-describedby="localError ? errorId : undefined" @click="chooseFile()">انځور وټاکئ</UButton>
+          <UButton type="button" color="neutral" variant="outline" size="lg" block icon="i-lucide-upload" :disabled="disabled" :aria-label="`${label}: Choose image`" :aria-invalid="!!localError" :aria-describedby="localError ? errorId : undefined" @click="chooseFile()">Choose image</UButton>
         </template>
       </UFileUpload>
       <span :id="errorId" class="sr-only" role="status" aria-live="polite">{{ localError }}</span>
       <div v-if="preview || file || removed" class="image-actions">
-        <UButton v-if="preview" type="button" color="neutral" variant="ghost" size="sm" icon="i-lucide-trash-2" :disabled="disabled" :aria-label="`${label}: انځور لرې کړئ`" @click="remove">لرې کول</UButton>
-        <UButton v-if="file || removed" type="button" color="neutral" variant="ghost" size="sm" icon="i-lucide-undo-2" :disabled="disabled" @click="undo">بېرته راوستل</UButton>
+        <UButton v-if="preview" type="button" color="neutral" variant="ghost" size="sm" icon="i-lucide-trash-2" :disabled="disabled" :aria-label="`${label}: Remove image`" @click="remove">Remove</UButton>
+        <UButton v-if="file || removed" type="button" color="neutral" variant="ghost" size="sm" icon="i-lucide-undo-2" :disabled="disabled" @click="undo">Restore</UButton>
       </div>
     </div>
   </UFormField>

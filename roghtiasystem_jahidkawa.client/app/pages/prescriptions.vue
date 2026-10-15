@@ -1,2 +1,2 @@
-﻿<script setup>useHead({ title: 'نسخې — روغتیا' })</script>
+﻿<script setup>useHead({ title: 'Prescriptions — Roghtia' })</script>
 <template><TreatmentListing prescriptions-only /></template>

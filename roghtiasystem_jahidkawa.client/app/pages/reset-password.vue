@@ -1,6 +1,6 @@
 <script setup>
 definePageMeta({ layout: false })
-useHead({ title: 'پټنوم بیا تنظیمول — روغتیا' })
+useHead({ title: 'Reset password — Roghtia' })
 
 const verification = reactive({ userName: '', pinCode: '' })
 const replacement = reactive({ newPassword: '', confirmPassword: '' })
@@ -11,35 +11,35 @@ const showPassword = ref(false)
 
 function validateVerification(state) {
   const errors = []
-  if (!state.userName?.trim() || state.userName.trim().length > 64) errors.push({ name: 'userName', message: 'سم کارن نوم ولیکئ.' })
-  if (!/^[0-9]{6,10}$/.test(state.pinCode)) errors.push({ name: 'pinCode', message: 'PIN باید له 6 تر 10 انګلیسي شمېرې ولري.' })
+  if (!state.userName?.trim() || state.userName.trim().length > 64) errors.push({ name: 'userName', message: 'Enter a valid username.' })
+  if (!/^[0-9]{6,10}$/.test(state.pinCode)) errors.push({ name: 'pinCode', message: 'PIN must contain 6 to 10 digits.' })
   return errors
 }
 
 function validateReplacement(state) {
   const errors = []
-  if (state.newPassword.length < 8 || state.newPassword.length > 128) errors.push({ name: 'newPassword', message: 'نوی پټنوم باید له 8 تر 128 تورو وي.' })
-  if (state.newPassword === verification.pinCode) errors.push({ name: 'newPassword', message: 'پټنوم باید له PIN څخه توپیر ولري.' })
-  if (state.confirmPassword !== state.newPassword) errors.push({ name: 'confirmPassword', message: 'دواړه پټنومونه یو شان نه دي.' })
+  if (state.newPassword.length < 8 || state.newPassword.length > 128) errors.push({ name: 'newPassword', message: 'New password must contain 8 to 128 characters.' })
+  if (state.newPassword === verification.pinCode) errors.push({ name: 'newPassword', message: 'Password must differ from the PIN code.' })
+  if (state.confirmPassword !== state.newPassword) errors.push({ name: 'confirmPassword', message: 'Passwords do not match.' })
   return errors
 }
 
 function showRequestError(error) {
-  const code = error?.data?.data?.code || error?.data?.code
+  const code = error?.data?.data?.code || error?.data?.code || ((error?.statusCode || error?.status) === 401 ? 'INVALID_PIN' : '')
   const messages = {
-    INVALID_PIN: 'کارن نوم یا PIN ناسم دی. مهرباني وکړئ بیا هڅه وکړئ.',
-    VALIDATION_ERROR: 'معلومات وګورئ او بیا هڅه وکړئ.',
-    TOO_MANY_REQUESTS: 'ډېرې هڅې شوې دي. لږ وروسته بیا هڅه وکړئ.',
-    RESET_CONFLICT: 'پټنوم بدل نه شو. بیا هڅه وکړئ.',
-    INVALID_ORIGIN: 'پاڼه تازه کړئ او بیا هڅه وکړئ.'
+    INVALID_PIN: 'Username or PIN is incorrect. Please try again.',
+    VALIDATION_ERROR: 'Check the information and try again.',
+    TOO_MANY_REQUESTS: 'Too many attempts. Please try again later.',
+    RESET_CONFLICT: 'Unable to change password. Please try again.',
+    INVALID_ORIGIN: 'Refresh the page and try again.'
   }
-  message.value = messages[code] || 'له سرور سره اړیکه ونه نیول شوه. مهرباني وکړئ بیا هڅه وکړئ.'
   if (code === 'INVALID_PIN') {
     step.value = 'verify'
     verification.pinCode = ''
     replacement.newPassword = ''
     replacement.confirmPassword = ''
   }
+  message.value = messages[code] || 'Unable to connect to the server. Please try again.'
 }
 
 async function verify() {
@@ -83,8 +83,10 @@ function focusError(event) {
   if (event.errors?.[0]?.id) document.getElementById(event.errors[0].id)?.focus()
 }
 
-watch(verification, () => { message.value = '' })
-watch(replacement, () => { message.value = '' })
+function updatePIN(value) {
+  verification.pinCode = String(value || '').replace(/[^0-9]/g, '').slice(0, 10)
+  message.value = ''
+}
 </script>
 
 <template>
@@ -92,40 +94,40 @@ watch(replacement, () => { message.value = '' })
     <section class="reset-card">
       <div class="reset-intro">
         <span class="brand-icon reset-logo" aria-hidden="true"><UIcon name="i-lucide-heart-pulse" /></span>
-        <span class="reset-brand">روغتیا<span>.</span></span>
-        <h1 id="reset-title">پټنوم بیا تنظیمول</h1>
-        <p v-if="step === 'verify'">خپل کارن نوم او هغه PIN ولیکئ چې د حساب جوړولو پر مهال مو ټاکلی و.</p>
-        <p v-else-if="step === 'replace'">PIN تایید شو. اوس نوی پټنوم وټاکئ.</p>
-        <p v-else>ستاسې پټنوم بدل شو. په نوي پټنوم خپل حساب ته ننوځئ.</p>
+        <span class="reset-brand">Roghtia<span>.</span></span>
+        <h1 id="reset-title">Reset password</h1>
+        <p v-if="step === 'verify'">Enter your username and the PIN you chose when creating your account.</p>
+        <p v-else-if="step === 'replace'">PIN verified. Choose a new password.</p>
+        <p v-else>Your password has changed. Sign in with your new password.</p>
       </div>
 
       <UForm v-if="step === 'verify'" :state="verification" :validate="validateVerification" :disabled="pending" novalidate class="reset-form" @submit="verify" @error="focusError">
-        <UFormField label="کارن نوم" name="userName" required>
-          <UInput v-model="verification.userName" name="userName" autocomplete="username" autocapitalize="none" :spellcheck="false" placeholder="خپل کارن نوم ولیکئ" icon="i-lucide-user-round" size="xl" class="w-full" :ui="{ base: 'reset-input' }" />
+        <UFormField label="Username" name="userName" required>
+          <UInput v-model="verification.userName" name="userName" autocomplete="username" autocapitalize="none" :spellcheck="false" placeholder="Enter your username" icon="i-lucide-user-round" size="xl" class="w-full" :ui="{ base: 'reset-input' }" @update:model-value="message = ''" />
         </UFormField>
-        <UFormField label="PIN" name="pinCode" required help="له 6 تر 10 انګلیسي شمېرې">
-          <UInput v-model="verification.pinCode" name="pinCode" type="password" inputmode="numeric" autocomplete="off" pattern="[0-9]*" maxlength="10" placeholder="خپل PIN ولیکئ" icon="i-lucide-key-round" size="xl" class="w-full" :ui="{ base: 'reset-input' }" @update:model-value="value => verification.pinCode = String(value || '').replace(/[^0-9]/g, '').slice(0, 10)" />
+        <UFormField label="PIN" name="pinCode" required help="6 to 10 digits">
+          <UInput v-model="verification.pinCode" name="pinCode" type="text" inputmode="numeric" dir="ltr" autocomplete="off" pattern="[0-9]*" maxlength="10" placeholder="Enter your PIN" icon="i-lucide-key-round" size="xl" class="w-full" :ui="{ base: 'reset-input' }" @update:model-value="updatePIN" />
         </UFormField>
         <p v-if="message" class="reset-message" role="alert">{{ message }}</p>
-        <UButton type="submit" size="xl" block :loading="pending" :disabled="pending" trailing-icon="i-lucide-arrow-left" class="reset-submit">PIN تایید کړئ</UButton>
+        <UButton type="submit" size="xl" block :loading="pending" :disabled="pending" trailing-icon="i-lucide-arrow-right" class="reset-submit">Verify PIN</UButton>
       </UForm>
 
       <UForm v-else-if="step === 'replace'" :state="replacement" :validate="validateReplacement" :disabled="pending" novalidate class="reset-form" @submit="resetPassword" @error="focusError">
-        <UFormField label="نوی پټنوم" name="newPassword" required>
-          <UInput v-model="replacement.newPassword" name="newPassword" :type="showPassword ? 'text' : 'password'" autocomplete="new-password" placeholder="نوی پټنوم ولیکئ" icon="i-lucide-lock-keyhole" size="xl" class="w-full" :ui="{ base: 'reset-input' }">
-            <template #trailing><UButton type="button" color="neutral" variant="ghost" size="sm" :icon="showPassword ? 'i-lucide-eye-off' : 'i-lucide-eye'" :aria-label="showPassword ? 'پټنوم پټ کړئ' : 'پټنوم ښکاره کړئ'" :aria-pressed="showPassword" @click="showPassword = !showPassword" /></template>
+        <UFormField label="New password" name="newPassword" required>
+          <UInput v-model="replacement.newPassword" name="newPassword" :type="showPassword ? 'text' : 'password'" autocomplete="new-password" placeholder="Enter new password" icon="i-lucide-lock-keyhole" size="xl" class="w-full" :ui="{ base: 'reset-input' }" @update:model-value="message = ''">
+            <template #trailing><UButton type="button" color="neutral" variant="ghost" size="sm" :icon="showPassword ? 'i-lucide-eye-off' : 'i-lucide-eye'" :aria-label="showPassword ? 'Hide password' : 'Show password'" :aria-pressed="showPassword" @click="showPassword = !showPassword" /></template>
           </UInput>
         </UFormField>
-        <UFormField label="نوی پټنوم بیا ولیکئ" name="confirmPassword" required>
-          <UInput v-model="replacement.confirmPassword" name="confirmPassword" :type="showPassword ? 'text' : 'password'" autocomplete="new-password" placeholder="نوی پټنوم بیا ولیکئ" icon="i-lucide-lock-keyhole" size="xl" class="w-full" :ui="{ base: 'reset-input' }" />
+        <UFormField label="Confirm new password" name="confirmPassword" required>
+          <UInput v-model="replacement.confirmPassword" name="confirmPassword" :type="showPassword ? 'text' : 'password'" autocomplete="new-password" placeholder="Confirm new password" icon="i-lucide-lock-keyhole" size="xl" class="w-full" :ui="{ base: 'reset-input' }" @update:model-value="message = ''" />
         </UFormField>
         <p v-if="message" class="reset-message" role="alert">{{ message }}</p>
-        <UButton type="submit" size="xl" block :loading="pending" :disabled="pending" trailing-icon="i-lucide-arrow-left" class="reset-submit">پټنوم بدل کړئ</UButton>
-        <UButton type="button" color="neutral" variant="ghost" size="lg" block :disabled="pending" @click="step = 'verify'">بېرته PIN ته</UButton>
+        <UButton type="submit" size="xl" block :loading="pending" :disabled="pending" trailing-icon="i-lucide-arrow-right" class="reset-submit">Change password</UButton>
+        <UButton type="button" color="neutral" variant="ghost" size="lg" block :disabled="pending" @click="step = 'verify'">Back to PIN verification</UButton>
       </UForm>
 
-      <div v-else class="reset-done" role="status"><UIcon name="i-lucide-circle-check" aria-hidden="true" /><p>نوی پټنوم خوندي شو. پخوانۍ ناستې پای ته ورسېدې.</p></div>
-      <p class="reset-switch"><NuxtLink to="/login">د ننوتلو پاڼې ته ستانه شئ</NuxtLink></p>
+      <div v-else class="reset-done" role="status"><UIcon name="i-lucide-circle-check" aria-hidden="true" /><p>New password saved. Previous sessions have ended.</p></div>
+      <p class="reset-switch"><NuxtLink to="/login">Return to sign in</NuxtLink></p>
     </section>
   </main>
 </template>

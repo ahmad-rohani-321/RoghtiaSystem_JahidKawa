@@ -1,5 +1,5 @@
 <script setup>
-import { fa_ir } from '@nuxt/ui/locale'
-const locale = { ...fa_ir, code: 'fa-IR-u-nu-latn' }
+import { en } from '@nuxt/ui/locale'
+const locale = en
 </script>
 <template><UApp :locale="locale"><NuxtLayout><NuxtPage /></NuxtLayout></UApp></template>

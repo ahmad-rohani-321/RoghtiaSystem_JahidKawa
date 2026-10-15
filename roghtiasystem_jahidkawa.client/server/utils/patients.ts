@@ -25,8 +25,13 @@ export function readPatientQuery(event: H3Event) {
   }
   const search = query.search ?? ''
   if (typeof search !== 'string' || search.length > 200) throw invalidPatient()
-  // Only pagination and search are forwarded; ownership is resolved by the API.
-  return { page: integer(query.page, 1, 2147483647), pageSize: integer(query.pageSize, 20, 100), search: search.trim() }
+  const name = query.name ?? ''
+  const phone = query.phone ?? ''
+  const gender = query.gender ?? ''
+  if (typeof name !== 'string' || name.length > 200 || typeof phone !== 'string' || phone.length > 32 ||
+      typeof gender !== 'string' || (gender && !['Male', 'Female', 'Other'].includes(gender))) throw invalidPatient()
+  // Ownership is resolved by the API; user IDs from the query are never forwarded.
+  return { page: integer(query.page, 1, 2147483647), pageSize: integer(query.pageSize, 20, 100), search: search.trim(), name: name.trim(), phone: phone.trim(), gender }
 }
 
 export async function readPatientInput(event: H3Event): Promise<PatientInput> {

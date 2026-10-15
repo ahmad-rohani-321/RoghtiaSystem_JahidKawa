@@ -12,12 +12,12 @@ const { pending } = auth
 
 function validate(state) {
   const errors = []
-  if (!state.username?.trim()) errors.push({ name: 'username', message: 'خپل کارن نوم ولیکئ.' })
-  if (!state.password) errors.push({ name: 'password', message: 'خپل پټنوم ولیکئ.' })
-  else if (isRegister.value && state.password.length < 8) errors.push({ name: 'password', message: 'پټنوم باید لږ تر لږه 8 توري ولري.' })
-  if (state.username?.trim().length > 64) errors.push({ name: 'username', message: 'کارن نوم باید تر 64 تورو ډېر نه وي.' })
-  if (state.password?.length > 128) errors.push({ name: 'password', message: 'پټنوم باید تر 128 تورو ډېر نه وي.' })
-  if (isRegister.value && !/^[0-9]{6,10}$/.test(state.pinCode)) errors.push({ name: 'pinCode', message: 'PIN باید له 6 تر 10 انګلیسي شمېرې ولري.' })
+  if (!state.username?.trim()) errors.push({ name: 'username', message: 'Enter your username.' })
+  if (!state.password) errors.push({ name: 'password', message: 'Enter your password.' })
+  else if (isRegister.value && state.password.length < 8) errors.push({ name: 'password', message: 'Password must contain at least 8 characters.' })
+  if (state.username?.trim().length > 64) errors.push({ name: 'username', message: 'Username must not exceed 64 characters.' })
+  if (state.password?.length > 128) errors.push({ name: 'password', message: 'Password must not exceed 128 characters.' })
+  if (isRegister.value && !/^[0-9]{6,10}$/.test(state.pinCode)) errors.push({ name: 'pinCode', message: 'PIN must contain 6 to 10 digits.' })
   return errors
 }
 
@@ -39,13 +39,13 @@ async function submit() {
   } catch (error) {
     const code = error?.data?.data?.code || error?.data?.code
     const messages = {
-      INVALID_CREDENTIALS: 'کارن نوم یا پټنوم ناسم دی.',
-      USERNAME_TAKEN: 'دا کارن نوم مخکې کارول شوی دی. بل نوم وټاکئ.',
-      VALIDATION_ERROR: 'کارن نوم، پټنوم او PIN وګورئ او بیا هڅه وکړئ.',
-      TOO_MANY_REQUESTS: 'ډېرې هڅې شوې دي. لږ وروسته بیا هڅه وکړئ.',
-      INVALID_ORIGIN: 'غوښتنه ونه منل شوه. پاڼه تازه کړئ او بیا هڅه وکړئ.'
+      INVALID_CREDENTIALS: 'Incorrect username or password.',
+      USERNAME_TAKEN: 'This username is already taken. Choose another.',
+      VALIDATION_ERROR: 'Check your username, password and PIN and try again.',
+      TOO_MANY_REQUESTS: 'Too many attempts. Please try again later.',
+      INVALID_ORIGIN: 'Request rejected. Refresh the page and try again.'
     }
-    serviceMessage.value = messages[code] || 'له سرور سره اړیکه ونه نیول شوه. مهرباني وکړئ بیا هڅه وکړئ.'
+    serviceMessage.value = messages[code] || 'Unable to connect to the server. Please try again.'
   }
 }
 
@@ -61,34 +61,34 @@ watch(credentials, () => { serviceMessage.value = '' })
     <section class="login-card">
       <div class="login-intro">
         <span class="brand-icon login-logo" aria-hidden="true"><UIcon name="i-lucide-heart-pulse" /></span>
-        <span class="login-brand">روغتیا<span>.</span></span>
-        <h1 id="login-title">{{ isRegister ? 'نوی کارن جوړ کړئ' : 'خپل حساب ته ننوځئ' }}</h1>
-        <p>{{ isRegister ? 'د نوي حساب لپاره کارن نوم، پټنوم او د بیا تنظیمولو PIN وټاکئ.' : 'د ننوتلو لپاره خپل کارن نوم او پټنوم ولیکئ.' }}</p>
+        <span class="login-brand">Roghtia<span>.</span></span>
+        <h1 id="login-title">{{ isRegister ? 'Create an account' : 'Sign in to your account' }}</h1>
+        <p>{{ isRegister ? 'Choose a username, password and recovery PIN for your new account.' : 'Enter your username and password to sign in.' }}</p>
       </div>
 
       <UForm :state="credentials" :validate="validate" :disabled="pending" novalidate class="login-form" @submit="submit" @error="focusError">
-        <UFormField label="کارن نوم" name="username" required>
-          <UInput v-model="credentials.username" name="username" autocomplete="username" autocapitalize="none" :spellcheck="false" placeholder="خپل کارن نوم ولیکئ" icon="i-lucide-user-round" size="xl" class="w-full" :ui="{ base: 'login-input' }" />
+        <UFormField label="Username" name="username" required>
+          <UInput v-model="credentials.username" name="username" autocomplete="username" autocapitalize="none" :spellcheck="false" placeholder="Enter your username" icon="i-lucide-user-round" size="xl" class="w-full" :ui="{ base: 'login-input' }" />
         </UFormField>
 
-        <UFormField label="پټنوم" name="password" required>
-          <UInput v-model="credentials.password" name="password" :type="showPassword ? 'text' : 'password'" :autocomplete="isRegister ? 'new-password' : 'current-password'" placeholder="خپل پټنوم ولیکئ" icon="i-lucide-lock-keyhole" size="xl" class="w-full" :ui="{ base: 'login-input' }">
+        <UFormField label="Password" name="password" required>
+          <UInput v-model="credentials.password" name="password" :type="showPassword ? 'text' : 'password'" :autocomplete="isRegister ? 'new-password' : 'current-password'" placeholder="Enter your password" icon="i-lucide-lock-keyhole" size="xl" class="w-full" :ui="{ base: 'login-input' }">
             <template #trailing>
-              <UButton type="button" color="neutral" variant="ghost" size="sm" :icon="showPassword ? 'i-lucide-eye-off' : 'i-lucide-eye'" :aria-label="showPassword ? 'پټنوم پټ کړئ' : 'پټنوم ښکاره کړئ'" :aria-pressed="showPassword" @click="showPassword = !showPassword" />
+              <UButton type="button" color="neutral" variant="ghost" size="sm" :icon="showPassword ? 'i-lucide-eye-off' : 'i-lucide-eye'" :aria-label="showPassword ? 'Hide password' : 'Show password'" :aria-pressed="showPassword" @click="showPassword = !showPassword" />
             </template>
           </UInput>
         </UFormField>
 
-        <UFormField v-if="isRegister" label="د پټنوم بیا تنظیمولو PIN" name="pinCode" required help="له 6 تر 10 انګلیسي شمېرې. دا PIN په خوندي ځای کې وساتئ.">
-          <UInput v-model="credentials.pinCode" name="pinCode" type="password" inputmode="numeric" autocomplete="off" pattern="[0-9]*" maxlength="10" placeholder="6–10 شمېرې" icon="i-lucide-key-round" size="xl" class="w-full" :ui="{ base: 'login-input' }" @update:model-value="value => credentials.pinCode = String(value || '').replace(/[^0-9]/g, '').slice(0, 10)" />
+        <UFormField v-if="isRegister" label="Password recovery PIN" name="pinCode" required help="6 to 10 digits. Keep this PIN in a safe place.">
+          <UInput v-model="credentials.pinCode" name="pinCode" type="text" inputmode="numeric" dir="ltr" autocomplete="off" pattern="[0-9]*" maxlength="10" placeholder="6–10 digits" icon="i-lucide-key-round" size="xl" class="w-full" :ui="{ base: 'login-input' }" @update:model-value="value => credentials.pinCode = String(value || '').replace(/[^0-9]/g, '').slice(0, 10)" />
         </UFormField>
 
-        <UCheckbox v-if="!isRegister" v-model="rememberMe" label="ما په یاد وساتئ" name="rememberMe" />
-        <NuxtLink v-if="!isRegister" to="/reset-password" class="forgot-link">پټنوم مو هېر شوی؟</NuxtLink>
+        <UCheckbox v-if="!isRegister" v-model="rememberMe" label="Remember me" name="rememberMe" />
+        <NuxtLink v-if="!isRegister" to="/reset-password" class="forgot-link">Forgot password?</NuxtLink>
         <p v-if="serviceMessage" class="login-message" role="alert">{{ serviceMessage }}</p>
-        <UButton type="submit" size="xl" block :loading="pending" :disabled="pending" trailing-icon="i-lucide-arrow-left" class="login-submit">{{ isRegister ? 'کارن جوړول' : 'ننوتل' }}</UButton>
+        <UButton type="submit" size="xl" block :loading="pending" :disabled="pending" trailing-icon="i-lucide-arrow-right" class="login-submit">{{ isRegister ? 'Create account' : 'Sign in' }}</UButton>
       </UForm>
-      <p class="login-switch"><span>{{ isRegister ? 'حساب لرئ؟' : 'حساب نه لرئ؟' }}</span><NuxtLink :to="isRegister ? '/login' : '/register'">{{ isRegister ? 'خپل حساب ته ننوځئ' : 'نوی کارن جوړ کړئ' }}</NuxtLink></p>
+      <p class="login-switch"><span>{{ isRegister ? 'Already have an account?' : 'Need an account?' }}</span><NuxtLink :to="isRegister ? '/login' : '/register'">{{ isRegister ? 'Sign in to your account' : 'Create an account' }}</NuxtLink></p>
     </section>
   </main>
 </template>

@@ -17,6 +17,8 @@ namespace RoghtiaSystem_JahidKawa.Server.Data
         public DbSet<PrescriptionItem> PrescriptionItems { get; set; }
         public DbSet<ClinicalNote> ClinicalNotes { get; set; }
         public DbSet<TreatmentClinicalNote> TreatmentClinicalNotes { get; set; }
+        public DbSet<AdditionalInstruction> AdditionalInstructions { get; set; }
+        public DbSet<TreatmentAdditionalInstruction> TreatmentAdditionalInstructions { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -65,6 +67,7 @@ namespace RoghtiaSystem_JahidKawa.Server.Data
             {
                 treatment.Property(t => t.RecordedAtUtc).IsRequired();
                 treatment.Property(t => t.BloodPressure).IsRequired().HasMaxLength(16);
+                treatment.Property(t => t.AdditionalInstructions).IsRequired().HasMaxLength(2000).HasDefaultValue("");
                 treatment.HasOne(t => t.User).WithMany().HasForeignKey(t => t.UserId).OnDelete(DeleteBehavior.Restrict);
                 treatment.HasOne(t => t.Patient).WithMany().HasForeignKey(t => t.PatientId).OnDelete(DeleteBehavior.Restrict);
                 treatment.HasIndex(t => new { t.UserId, t.RecordedAtUtc });
@@ -72,13 +75,19 @@ namespace RoghtiaSystem_JahidKawa.Server.Data
             });
             modelBuilder.Entity<PrescriptionItem>(item =>
             {
+                item.Property(i => i.Dose).HasDefaultValue(1);
+                item.Property(i => i.StockDeducted).HasDefaultValue(false);
                 item.Property(i => i.MedicationName).IsRequired().HasMaxLength(200);
                 item.Property(i => i.MedicationType).IsRequired().HasMaxLength(100);
+                item.Property(i => i.Frequency).IsRequired().HasMaxLength(64).HasDefaultValue("Once daily");
                 item.Property(i => i.Duration).IsRequired().HasMaxLength(100);
                 item.HasOne(i => i.Treatment).WithMany(t => t.PrescriptionItems).HasForeignKey(i => i.TreatmentId).OnDelete(DeleteBehavior.Cascade);
                 item.HasOne(i => i.Medication).WithMany().HasForeignKey(i => i.MedicationId).OnDelete(DeleteBehavior.Restrict);
                 item.HasIndex(i => new { i.TreatmentId, i.Position }).IsUnique();
-                item.ToTable(table => table.HasCheckConstraint("CK_PrescriptionItems_Refills", "Refills BETWEEN 0 AND 100"));
+                item.ToTable(table =>
+                {
+                    table.HasCheckConstraint("CK_PrescriptionItems_Dose", "Dose > 0");
+                });
             });
             modelBuilder.Entity<ClinicalNote>(note =>
             {
@@ -91,6 +100,18 @@ namespace RoghtiaSystem_JahidKawa.Server.Data
                 link.HasKey(l => new { l.TreatmentId, l.ClinicalNoteId });
                 link.HasOne(l => l.Treatment).WithMany(t => t.ClinicalNotes).HasForeignKey(l => l.TreatmentId).OnDelete(DeleteBehavior.Cascade);
                 link.HasOne(l => l.ClinicalNote).WithMany().HasForeignKey(l => l.ClinicalNoteId).OnDelete(DeleteBehavior.Restrict);
+            });
+            modelBuilder.Entity<AdditionalInstruction>(instruction =>
+            {
+                instruction.Property(n => n.Text).IsRequired().HasMaxLength(300);
+                instruction.HasOne(n => n.User).WithMany().HasForeignKey(n => n.UserId).OnDelete(DeleteBehavior.Restrict);
+                instruction.HasIndex(n => new { n.UserId, n.Text }).IsUnique();
+            });
+            modelBuilder.Entity<TreatmentAdditionalInstruction>(link =>
+            {
+                link.HasKey(l => new { l.TreatmentId, l.AdditionalInstructionId });
+                link.HasOne(l => l.Treatment).WithMany(t => t.AdditionalInstructionItems).HasForeignKey(l => l.TreatmentId).OnDelete(DeleteBehavior.Cascade);
+                link.HasOne(l => l.AdditionalInstruction).WithMany().HasForeignKey(l => l.AdditionalInstructionId).OnDelete(DeleteBehavior.Restrict);
             });
         }
     }

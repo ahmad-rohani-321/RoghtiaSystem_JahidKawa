@@ -3,23 +3,24 @@ import type { Treatment } from '#shared/types/treatment'
 
 const open = defineModel<boolean>('open', { default: false })
 const props = defineProps<{ treatment: Treatment | null }>()
-const genders: Record<string, string> = { Male: 'نارینه', Female: 'ښځینه', Other: 'نور' }
+const genders: Record<string, string> = { Male: 'Male', Female: 'Female', Other: 'Other' }
 const recordedDate = computed(() => props.treatment ? formatJalaliDateTime(props.treatment.recordedAtUtc) : '')
 </script>
 
 <template>
-  <UModal v-model:open="open" title="د تداوۍ جزیات" description="ثبت شوي معلومات او نسخه" :content="{ dir: 'rtl' }" :ui="{ content: 'w-[min(880px,calc(100vw-1.5rem))] max-w-none min-w-0', body: 'min-w-0' }">
+  <UModal v-model:open="open" title="Treatment details" description="Saved information and prescription" :content="{ dir: 'ltr' }" :ui="{ content: 'w-[min(880px,calc(100vw-1.5rem))] max-w-none min-w-0', body: 'min-w-0' }">
     <template #body>
       <div v-if="treatment" class="treatment-detail">
-        <div class="detail-header"><div><h3><bdi>{{ treatment.patient.name }}</bdi></h3><p>{{ treatment.patient.code }} · {{ recordedDate }}</p></div><span class="detail-badge">تداوي #{{ localNumber(treatment.id) }}</span></div>
+        <div class="detail-header"><div><h3><bdi>{{ treatment.patient.name }}</bdi></h3><p>{{ treatment.patient.code }} · {{ recordedDate }}</p></div><span class="detail-badge">Treatments #{{ localNumber(treatment.id) }}</span></div>
         <dl class="detail-facts">
-          <div><dt>عمر</dt><dd>{{ localNumber(treatment.patient.age) }} کاله</dd></div>
-          <div><dt>جنسیت</dt><dd>{{ genders[treatment.patient.gender] || treatment.patient.gender }}</dd></div>
-          <div><dt>ټیلیفون</dt><dd dir="ltr">{{ treatment.patient.phone || '—' }}</dd></div>
-          <div><dt>د وینې فشار</dt><dd dir="ltr">{{ treatment.bloodPressure || '—' }}</dd></div>
+          <div><dt>Age</dt><dd>{{ localNumber(treatment.patient.age) }} years</dd></div>
+          <div><dt>Gender</dt><dd>{{ genders[treatment.patient.gender] || treatment.patient.gender }}</dd></div>
+          <div><dt>Phone</dt><dd dir="ltr">{{ treatment.patient.phone || '—' }}</dd></div>
+          <div><dt>Blood pressure</dt><dd dir="ltr">{{ treatment.bloodPressure || '—' }}</dd></div>
         </dl>
-        <div v-if="treatment.clinicalNotes.length" class="detail-notes"><h4>کلینیکي یادښتونه</h4><div><span v-for="note in treatment.clinicalNotes" :key="note.id">{{ note.text }}</span></div></div>
-        <div class="detail-medicines"><h4>نسخه</h4><div v-if="treatment.prescriptionItems.length" class="detail-table-wrap"><table><thead><tr><th>شمېره</th><th>درمل</th><th>ډول</th><th>موده</th><th>تکرار</th></tr></thead><tbody><tr v-for="item in treatment.prescriptionItems" :key="item.id"><td>{{ localNumber(item.position) }}</td><td><bdi>{{ item.medicationName }}</bdi></td><td>{{ item.medicationType }}</td><td>{{ item.duration }}</td><td>{{ localNumber(item.refills) }}</td></tr></tbody></table></div><p v-else class="detail-empty">د دې تداوۍ لپاره درمل نه دي لیکل شوي.</p></div>
+        <div v-if="treatment.clinicalNotes.length" class="detail-notes"><h4>Clinical notes</h4><div><span v-for="note in treatment.clinicalNotes" :key="note.id">{{ note.text }}</span></div></div>
+        <div v-if="treatment.additionalInstructions" class="detail-notes"><h4>Additional instructions</h4><p class="additional-instructions">{{ treatment.additionalInstructions }}</p></div>
+        <div class="detail-medicines"><h4>Prescription</h4><div v-if="treatment.prescriptionItems.length" class="detail-table-wrap"><table><thead><tr><th>No.</th><th>Medications</th><th>Type</th><th>Dose</th><th>Frequency</th><th>Duration</th></tr></thead><tbody><tr v-for="item in treatment.prescriptionItems" :key="item.id"><td>{{ localNumber(item.position) }}</td><td><bdi>{{ item.medicationName }}</bdi></td><td>{{ item.medicationType }}</td><td>{{ localNumber(item.dose) }}</td><td>{{ item.frequency }}</td><td>{{ item.duration }}</td></tr></tbody></table></div><p v-else class="detail-empty">No medications prescribed for this treatment.</p></div>
       </div>
     </template>
   </UModal>
@@ -38,6 +39,7 @@ const recordedDate = computed(() => props.treatment ? formatJalaliDateTime(props
 h4 { margin: 0 0 12px; font-size: 1rem; }
 .detail-notes > div { display: flex; gap: 8px; flex-wrap: wrap; }
 .detail-notes span { overflow-wrap: anywhere; }
+.additional-instructions { margin: 0; padding: 10px 12px; border-radius: 10px; background: var(--soft); white-space: pre-line; overflow-wrap: anywhere; }
 .detail-table-wrap { overflow-x: auto; }
 table { width: 100%; min-width: 530px; border-collapse: collapse; text-align: start; }
 th, td { padding: 12px; border-bottom: 1px solid var(--line); text-align: start; }

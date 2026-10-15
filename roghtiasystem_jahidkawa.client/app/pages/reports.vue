@@ -1,7 +1,7 @@
 <script setup>
-useHead({ title: 'راپورونه — روغتیا' })
+useHead({ title: 'Reports — Roghtia' })
 </script>
 
 <template>
-  <section class="empty-page" aria-label="راپورونه"></section>
+  <section class="empty-page" aria-label="Reports"></section>
 </template>

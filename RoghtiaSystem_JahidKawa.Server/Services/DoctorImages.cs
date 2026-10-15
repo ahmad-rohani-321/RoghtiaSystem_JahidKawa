@@ -20,9 +20,9 @@ namespace RoghtiaSystem_JahidKawa.Server.Services
         {
             if (file == null) return null;
             if (file.Length > MaxFileBytes)
-                throw new ImageValidationException("IMAGE_TOO_LARGE", "د هر انځور اندازه باید تر ۲ مېګابایټه زیاته نه وي.");
+                throw new ImageValidationException("IMAGE_TOO_LARGE", "Each image must not exceed 2 MB.");
             if (file.Length == 0)
-                throw new ImageValidationException("INVALID_IMAGE", "مهرباني وکړئ یو سم PNG، JPEG یا WebP انځور وټاکئ.");
+                throw new ImageValidationException("INVALID_IMAGE", "Please choose a valid PNG, JPEG or WebP image.");
 
             await using var stream = file.OpenReadStream();
             using var buffer = new MemoryStream((int)file.Length);
@@ -30,7 +30,7 @@ namespace RoghtiaSystem_JahidKawa.Server.Services
             var bytes = buffer.ToArray();
             var contentType = GetContentType(bytes);
             if (contentType == null || !string.Equals(contentType, file.ContentType, StringComparison.OrdinalIgnoreCase))
-                throw new ImageValidationException("INVALID_IMAGE", "مهرباني وکړئ یو سم PNG، JPEG یا WebP انځور وټاکئ.");
+                throw new ImageValidationException("INVALID_IMAGE", "Please choose a valid PNG, JPEG or WebP image.");
             return bytes;
         }
     }

@@ -1,4 +1,5 @@
 import type { Patient, PatientInput, PatientPage, PatientQuery } from '#shared/types/patient'
+import { notifyDashboardDataChanged } from '~/utils/dashboardRefresh'
 
 export function usePatients() {
   const requestFetch = useRequestFetch()
@@ -12,21 +13,29 @@ export function usePatients() {
     return requestFetch<Patient>(`/api/patients/${encodeURIComponent(id)}`, { retry: 0 })
   }
 
+  function getByCode(code: string) {
+    return requestFetch<Patient>(`/api/patients/by-code/${encodeURIComponent(code)}`, { retry: 0 })
+  }
+
   function inputBody(input: PatientInput) {
     return { name: input.name, phone: input.phone, age: input.age, gender: input.gender, address: input.address }
   }
 
-  function create(input: PatientInput) {
-    return $fetch<Patient>('/api/patients', {
+  async function create(input: PatientInput) {
+    const patient = await $fetch<Patient>('/api/patients', {
       method: 'POST', body: inputBody(input), headers: { 'x-roghtia-request': '1' }, retry: 0
     })
+    notifyDashboardDataChanged()
+    return patient
   }
 
-  function update(id: number, input: PatientInput) {
-    return $fetch<Patient>(`/api/patients/${encodeURIComponent(id)}`, {
+  async function update(id: number, input: PatientInput) {
+    const patient = await $fetch<Patient>(`/api/patients/${encodeURIComponent(id)}`, {
       method: 'PUT', body: inputBody(input), headers: { 'x-roghtia-request': '1' }, retry: 0
     })
+    notifyDashboardDataChanged()
+    return patient
   }
 
-  return { list, get, create, update }
+  return { list, get, getByCode, create, update }
 }

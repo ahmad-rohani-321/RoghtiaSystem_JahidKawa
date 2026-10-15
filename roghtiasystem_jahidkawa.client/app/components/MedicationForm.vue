@@ -48,14 +48,14 @@ function populate() {
 
 function validate(value: typeof state): FormError[] {
   const errors: FormError[] = []
-  if (!value.name.trim()) errors.push({ name: 'name', message: 'د درملو نوم ولیکئ.' })
-  else if (value.name.trim().length > 200) errors.push({ name: 'name', message: 'نوم باید تر 200 تورو ډېر نه وي.' })
-  if (!value.type.trim()) errors.push({ name: 'type', message: 'د درملو ډول ولیکئ.' })
-  else if (value.type.trim().length > 100) errors.push({ name: 'type', message: 'ډول باید تر 100 تورو ډېر نه وي.' })
+  if (!value.name.trim()) errors.push({ name: 'name', message: 'Enter the medication name.' })
+  else if (value.name.trim().length > 200) errors.push({ name: 'name', message: 'Name must not exceed 200 characters.' })
+  if (!value.type.trim()) errors.push({ name: 'type', message: 'Enter the medication type.' })
+  else if (value.type.trim().length > 100) errors.push({ name: 'type', message: 'Type must not exceed 100 characters.' })
   if (String(value.quantity).trim() === '' || !Number.isInteger(Number(value.quantity)) || Number(value.quantity) < 0 || Number(value.quantity) > 2147483647) {
-    errors.push({ name: 'quantity', message: 'مقدار باید د 0 او 2147483647 ترمنځ بشپړ شمېر وي.' })
+    errors.push({ name: 'quantity', message: 'Quantity must be a whole number between 0 and 2147483647.' })
   }
-  if (value.remarks.trim().length > 1000) errors.push({ name: 'remarks', message: 'یادښت باید تر 1000 تورو ډېر نه وي.' })
+  if (value.remarks.trim().length > 1000) errors.push({ name: 'remarks', message: 'Remarks must not exceed 1000 characters.' })
   return errors
 }
 
@@ -77,27 +77,27 @@ async function save() {
     const status = failure.statusCode || failure.status
     const code = failure.data?.data?.code || failure.data?.code
     const messages: Record<string, string> = {
-      VALIDATION_ERROR: 'د فورمې معلومات وګورئ او بیا هڅه وکړئ.',
-      NOT_FOUND: 'دا درمل ونه موندل شول. لېست تازه کړئ او بیا هڅه وکړئ.',
-      FORBIDDEN: 'تاسې د دې بدلون اجازه نه لرئ.',
-      INVALID_ORIGIN: 'غوښتنه ونه منل شوه. پاڼه تازه کړئ او بیا هڅه وکړئ.',
-      TOO_MANY_REQUESTS: 'ډېرې هڅې شوې دي. لږ وروسته بیا هڅه وکړئ.'
+      VALIDATION_ERROR: 'Check the form details and try again.',
+      NOT_FOUND: 'Medication not found. Refresh the list and try again.',
+      FORBIDDEN: 'You do not have permission to make this change.',
+      INVALID_ORIGIN: 'Request rejected. Refresh the page and try again.',
+      TOO_MANY_REQUESTS: 'Too many attempts. Please try again later.'
     }
     if (status === 401) {
       open.value = false
-      toast.add({ title: 'بیا ننوځئ', description: 'ستاسې ناسته پای ته رسېدلې ده. بیا خپل حساب ته ننوځئ.', color: 'warning' })
+      toast.add({ title: 'Sign in again', description: 'Your session has expired. Please sign in again.', color: 'warning' })
       try { await auth.refresh() } catch { /* Navigation verifies the session again. */ }
       await nuxtApp.runWithContext(() => navigateTo('/login'))
       return
     }
-    serviceMessage.value = messages[code || ''] || (status === 403 ? messages.FORBIDDEN! : status === 429 ? messages.TOO_MANY_REQUESTS! : 'معلومات خوندي نه شول. مهرباني وکړئ بیا هڅه وکړئ.')
-    toast.add({ title: 'درمل خوندي نه شول', description: serviceMessage.value, color: 'error' })
+    serviceMessage.value = messages[code || ''] || (status === 403 ? messages.FORBIDDEN! : status === 429 ? messages.TOO_MANY_REQUESTS! : 'Unable to save information. Please try again.')
+    toast.add({ title: 'Medication could not be saved', description: serviceMessage.value, color: 'error' })
   } finally {
     pending.value = false
   }
   if (saved) {
     open.value = false
-    toast.add({ title: created ? 'نوي درمل ثبت شول' : 'د درملو معلومات تازه شول', color: 'success', icon: 'i-lucide-circle-check' })
+    toast.add({ title: created ? 'Medication added' : 'Medication updated', color: 'success', icon: 'i-lucide-circle-check' })
     emit('saved', saved, created)
   }
 }
@@ -115,11 +115,11 @@ watch(open, (value) => {
 <template>
   <UModal
     :open="open"
-    :title="editing ? 'د درملو سمون' : 'نوي درمل'"
-    description="د درملو نوم، ډول او مقدار ولیکئ."
+    :title="editing ? 'Edit medication' : 'New medication'"
+    description="Enter the medication name, type and quantity."
     :dismissible="!pending"
-    :close="pending ? false : { 'aria-label': 'تړل' }"
-    :content="{ dir: 'rtl' }"
+    :close="pending ? false : { 'aria-label': 'Close' }"
+    :content="{ dir: 'ltr' }"
     :ui="{ content: 'max-w-2xl min-w-0', wrapper: 'min-w-0 pe-8', body: 'min-w-0 min-h-0', title: 'text-lg break-words', description: 'text-base leading-7 break-words' }"
     @update:open="value => { if (!pending) open = value }"
   >
@@ -127,27 +127,27 @@ watch(open, (value) => {
       <UForm ref="medicationForm" :state="state" :validate="validate" :disabled="pending" :loading-auto="false" novalidate class="medication-form" @submit="save" @error="focusError">
         <div class="medication-owner">
           <UIcon name="i-lucide-user-round" aria-hidden="true" />
-          <span>کارن: <bdi>{{ auth.user.value?.userName }}</bdi></span>
-          <span v-if="medication" class="medication-reference">شمېره: {{ localNumber(medication.id) }}</span>
+          <span>User: <bdi>{{ auth.user.value?.userName }}</bdi></span>
+          <span v-if="medication" class="medication-reference">ID: {{ localNumber(medication.id) }}</span>
         </div>
-        <UFormField name="name" label="د درملو نوم" size="lg" required :ui="{ label: 'text-base' }">
-          <UInput v-model="state.name" name="name" dir="auto" :maxlength="200" placeholder="د درملو نوم ولیکئ" autocomplete="off" size="xl" class="w-full" :ui="{ base: 'medication-input' }" />
+        <UFormField name="name" label="Medication name" size="lg" required :ui="{ label: 'text-base' }">
+          <UInput v-model="state.name" name="name" dir="auto" :maxlength="200" placeholder="Enter medication name" autocomplete="off" size="xl" class="w-full" :ui="{ base: 'medication-input' }" />
         </UFormField>
         <div class="medication-form-grid">
-          <UFormField name="type" label="د درملو ډول" size="lg" required :ui="{ label: 'text-base' }">
-            <USelectMenu v-model="state.type" :items="medicationTypes" name="type" searchable searchable-placeholder="د درملو ډول ولټوئ" placeholder="د درملو ډول وټاکئ" size="xl" class="w-full" :ui="{ base: 'medication-input' }" />
+          <UFormField name="type" label="Medication type" size="lg" required :ui="{ label: 'text-base' }">
+            <USelectMenu v-model="state.type" :items="medicationTypes" name="type" searchable searchable-placeholder="Search medication types" placeholder="Select medication type" size="xl" class="w-full" :ui="{ base: 'medication-input' }" />
           </UFormField>
-          <UFormField name="quantity" label="مقدار" size="lg" required :ui="{ label: 'text-base' }">
+          <UFormField name="quantity" label="Quantity" size="lg" required :ui="{ label: 'text-base' }">
             <UInput v-model="state.quantity" name="quantity" type="number" inputmode="numeric" :min="0" :max="2147483647" :step="1" size="xl" class="w-full" :ui="{ base: 'medication-input' }" />
           </UFormField>
         </div>
-        <UFormField name="remarks" label="یادښت" hint="اختیاري" size="lg" :ui="{ label: 'text-base' }">
-          <UTextarea v-model="state.remarks" name="remarks" dir="auto" :maxlength="1000" :rows="3" placeholder="د اړتیا په صورت کې نور معلومات ولیکئ" size="xl" class="w-full" :ui="{ base: 'medication-input medication-remarks-input' }" />
+        <UFormField name="remarks" label="Remarks" hint="Optional" size="lg" :ui="{ label: 'text-base' }">
+          <UTextarea v-model="state.remarks" name="remarks" dir="auto" :maxlength="1000" :rows="3" placeholder="Enter any additional information" size="xl" class="w-full" :ui="{ base: 'medication-input medication-remarks-input' }" />
         </UFormField>
         <p v-if="serviceMessage" class="medication-message" role="alert">{{ serviceMessage }}</p>
         <div class="medication-form-actions">
-          <UButton type="submit" size="lg" icon="i-lucide-save" :loading="pending" :disabled="pending">{{ editing ? 'بدلونونه خوندي کړئ' : 'درمل ثبت کړئ' }}</UButton>
-          <UButton type="button" size="lg" color="neutral" variant="outline" :disabled="pending" @click="open = false">بندول</UButton>
+          <UButton type="submit" size="lg" icon="i-lucide-save" :loading="pending" :disabled="pending">{{ editing ? 'Save changes' : 'Add medication' }}</UButton>
+          <UButton type="button" size="lg" color="neutral" variant="outline" :disabled="pending" @click="open = false">Cancel</UButton>
         </div>
       </UForm>
     </template>

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { Patient, PatientPage } from '#shared/types/patient'
 
-useHead({ title: 'ناروغان — روغتیا' })
+useHead({ title: 'Patients — Roghtia' })
 
 const api = usePatients()
 const auth = useAuth()
@@ -10,7 +10,7 @@ const nuxtApp = useNuxtApp()
 const search = ref('')
 const appliedSearch = ref('')
 const page = ref(1)
-const genders: Record<string, string> = { Male: 'نارینه', Female: 'ښځینه', Other: 'نور' }
+const genders: Record<string, string> = { Male: 'Male', Female: 'Female', Other: 'Other' }
 const pageSize = 10
 const result = ref<PatientPage>({ items: [], total: 0, page: 1, pageSize })
 const loading = ref(true)
@@ -29,7 +29,7 @@ let searchTimer: ReturnType<typeof setTimeout> | undefined
 async function handleExpiredSession() {
   result.value = { items: [], total: 0, page: 1, pageSize }
   formOpen.value = false
-  if (import.meta.client) toast.add({ title: 'بیا ننوځئ', description: 'ستاسې ناسته پای ته رسېدلې ده. بیا خپل حساب ته ننوځئ.', color: 'warning' })
+  if (import.meta.client) toast.add({ title: 'Sign in again', description: 'Your session has expired. Please sign in again.', color: 'warning' })
   try { await auth.refresh() } catch { /* The login route checks authentication again. */ }
   await nuxtApp.runWithContext(() => navigateTo('/login'))
 }
@@ -57,10 +57,10 @@ async function load() {
     const status = failure.statusCode || failure.status
     if (status === 401) return await handleExpiredSession()
     serviceMessage.value = status === 429
-      ? 'ډېرې هڅې شوې دي. لږ وروسته بیا هڅه وکړئ.'
+      ? 'Too many attempts. Please try again later.'
       : status === 403
-        ? 'تاسې د دې معلوماتو د لیدلو اجازه نه لرئ.'
-        : 'د ناروغانو لېست را نه وړل شو. مهرباني وکړئ بیا هڅه وکړئ.'
+        ? 'You do not have permission to view this information.'
+        : 'Unable to load patients. Please try again.'
   } finally {
     if (sequence === requestSequence) loading.value = false
   }
@@ -101,7 +101,7 @@ async function editPatient(patient: Patient) {
     const failure = error as { statusCode?: number, status?: number }
     const status = failure.statusCode || failure.status
     if (status === 401) return await handleExpiredSession()
-    toast.add({ title: 'معلومات را نه وړل شول', description: status === 404 ? 'دا ناروغان ونه موندل شول. لېست تازه کړئ.' : 'مهرباني وکړئ بیا هڅه وکړئ.', color: 'error' })
+    toast.add({ title: 'Unable to load information', description: status === 404 ? 'Patients not found. Refresh the list.' : 'Please try again.', color: 'error' })
   } finally {
     if (sequence === editSequence) editingId.value = null
   }
@@ -152,11 +152,11 @@ await load()
   <section class="patients-page" aria-labelledby="patients-title">
     <header class="page-heading">
       <div>
-        <div class="eyebrow"><span /> ستاسې د ناروغانو لېست</div>
-        <h1 id="patients-title">ناروغان</h1>
-        <p>ناروغان ثبت کړئ، معلومات یې وګورئ او تازه یې وساتئ.</p>
+        <div class="eyebrow"><span /> Your patient list</div>
+        <h1 id="patients-title">Patients</h1>
+        <p>Register patients, view their details and keep them up to date.</p>
       </div>
-      <UButton type="button" icon="i-lucide-plus" size="lg" class="add-patient-button" @click="addPatient">نوی ناروغ</UButton>
+      <UButton type="button" icon="i-lucide-plus" size="lg" class="add-patient-button" @click="addPatient">New patient</UButton>
     </header>
 
     <section class="panel patients-panel" aria-labelledby="patients-list-title" :aria-busy="loading">
@@ -164,31 +164,31 @@ await load()
         <div class="patients-list-heading">
           <span class="patients-icon" aria-hidden="true"><UIcon name="i-lucide-users-round" /></span>
           <div>
-            <h2 id="patients-list-title">{{ appliedSearch ? 'د لټون پایلې' : 'ثبت شوي ناروغان' }}</h2>
-            <p aria-live="polite">{{ loaded ? `${localNumber(result.total)} ناروغان` : 'ستاسې د حساب ناروغان' }}</p>
+            <h2 id="patients-list-title">{{ appliedSearch ? 'Search results' : 'Registered patients' }}</h2>
+            <p aria-live="polite">{{ loaded ? `${localNumber(result.total)} Patients` : 'Your patients' }}</p>
           </div>
         </div>
         <form class="patients-search" role="search" @submit.prevent="applySearch">
-          <UInput v-model="search" name="patientSearch" icon="i-lucide-search" placeholder="د نوم، کوډ یا ټیلیفون له مخې لټون" aria-label="د ناروغانو لټون" :maxlength="200" size="xl" class="w-full" :ui="{ base: 'patients-search-input' }" />
-          <UButton type="submit" size="lg" color="neutral" variant="outline" :loading="loading" aria-label="ناروغان ولټوئ">لټون</UButton>
+          <UInput v-model="search" name="patientSearch" icon="i-lucide-search" placeholder="Search by name, code or phone" aria-label="Search patients" :maxlength="200" size="xl" class="w-full" :ui="{ base: 'patients-search-input' }" />
+          <UButton type="submit" size="lg" color="neutral" variant="outline" :loading="loading" aria-label="Search patients">Search</UButton>
         </form>
       </header>
 
       <div v-if="serviceMessage" class="patients-error" role="alert">
         <UIcon name="i-lucide-circle-alert" aria-hidden="true" />
         <p>{{ serviceMessage }}</p>
-        <UButton type="button" size="lg" color="neutral" variant="outline" icon="i-lucide-refresh-cw" :loading="loading" :disabled="loading" @click="load">بیا هڅه وکړئ</UButton>
+        <UButton type="button" size="lg" color="neutral" variant="outline" icon="i-lucide-refresh-cw" :loading="loading" :disabled="loading" @click="load">Try again</UButton>
       </div>
 
       <div v-if="loading" class="patients-state" role="status">
         <UIcon name="i-lucide-loader-circle" class="animate-spin" aria-hidden="true" />
-        <p>ناروغان را اخیستل کېږي…</p>
+        <p>Loading patients…</p>
       </div>
       <template v-else-if="loaded && result.items.length">
         <div class="patients-table-wrap">
           <table class="patients-table">
-            <caption class="sr-only">ستاسې د ناروغانو معلومات</caption>
-            <thead><tr><th scope="col">شمېره</th><th scope="col">د ناروغانو نوم</th><th scope="col">کوډ</th><th scope="col">ټیلیفون</th><th scope="col">عمر</th><th scope="col">جنسیت</th><th scope="col">پته</th><th scope="col"><span class="sr-only">سمون</span></th></tr></thead>
+            <caption class="sr-only">Your patient information</caption>
+            <thead><tr><th scope="col">No.</th><th scope="col">Patient name</th><th scope="col">Code</th><th scope="col">Phone</th><th scope="col">Age</th><th scope="col">Gender</th><th scope="col">Address</th><th scope="col"><span class="sr-only">Edit</span></th></tr></thead>
             <tbody>
               <tr v-for="patient in result.items" :key="patient.id">
                 <td class="patient-id">{{ localNumber(patient.id) }}</td>
@@ -198,7 +198,7 @@ await load()
                 <td><span class="patient-quantity">{{ localNumber(patient.age) }}</span></td>
                 <td>{{ genders[patient.gender] }}</td>
                 <td><p class="patient-remarks" dir="auto">{{ patient.address || '—' }}</p></td>
-                <td><UButton type="button" color="neutral" variant="ghost" icon="i-lucide-pencil-line" size="lg" :loading="editingId === patient.id" :disabled="editingId !== null" :aria-label="`${patient.name}: سمون`" @click="editPatient(patient)">سمون</UButton></td>
+                <td><UButton type="button" color="neutral" variant="ghost" icon="i-lucide-pencil-line" size="lg" :loading="editingId === patient.id" :disabled="editingId !== null" :aria-label="`${patient.name}: Edit`" @click="editPatient(patient)">Edit</UButton></td>
               </tr>
             </tbody>
           </table>
@@ -207,34 +207,34 @@ await load()
         <div class="patients-cards">
           <article v-for="patient in result.items" :key="patient.id" class="patient-card">
             <header>
-              <div><p class="patient-id">شمېره {{ localNumber(patient.id) }}</p><h3><bdi>{{ patient.name }}</bdi></h3></div>
-              <UButton type="button" color="neutral" variant="outline" icon="i-lucide-pencil-line" size="lg" :loading="editingId === patient.id" :disabled="editingId !== null" :aria-label="`${patient.name}: سمون`" @click="editPatient(patient)">سمون</UButton>
+              <div><p class="patient-id">No. {{ localNumber(patient.id) }}</p><h3><bdi>{{ patient.name }}</bdi></h3></div>
+              <UButton type="button" color="neutral" variant="outline" icon="i-lucide-pencil-line" size="lg" :loading="editingId === patient.id" :disabled="editingId !== null" :aria-label="`${patient.name}: Edit`" @click="editPatient(patient)">Edit</UButton>
             </header>
             <dl>
-              <div><dt>کوډ</dt><dd><bdi>{{ patient.code }}</bdi></dd></div>
-              <div><dt>ټیلیفون</dt><dd><bdi dir="ltr">{{ patient.phone || '—' }}</bdi></dd></div>
-              <div><dt>جنسیت</dt><dd>{{ genders[patient.gender] }}</dd></div>
-              <div><dt>عمر</dt><dd class="patient-quantity">{{ localNumber(patient.age) }}</dd></div>
-              <div v-if="patient.address" class="patient-card-remarks"><dt>پته</dt><dd dir="auto">{{ patient.address }}</dd></div>
+              <div><dt>Code</dt><dd><bdi>{{ patient.code }}</bdi></dd></div>
+              <div><dt>Phone</dt><dd><bdi dir="ltr">{{ patient.phone || '—' }}</bdi></dd></div>
+              <div><dt>Gender</dt><dd>{{ genders[patient.gender] }}</dd></div>
+              <div><dt>Age</dt><dd class="patient-quantity">{{ localNumber(patient.age) }}</dd></div>
+              <div v-if="patient.address" class="patient-card-remarks"><dt>Address</dt><dd dir="auto">{{ patient.address }}</dd></div>
             </dl>
           </article>
         </div>
 
         <footer class="patients-pagination">
-          <p>{{ localNumber(rangeStart) }}–{{ localNumber(rangeEnd) }} له {{ localNumber(result.total) }} ناروغانو څخه</p>
-          <nav aria-label="د ناروغانو د پاڼو ټاکل">
-            <UButton type="button" size="lg" color="neutral" variant="outline" icon="i-lucide-chevron-right" :disabled="loading || page <= 1" aria-label="مخکینۍ پاڼه" @click="changePage(page - 1)" />
+          <p>{{ localNumber(rangeStart) }}–{{ localNumber(rangeEnd) }} of {{ localNumber(result.total) }} patients</p>
+          <nav aria-label="Patient pagination">
+            <UButton type="button" size="lg" color="neutral" variant="outline" icon="i-lucide-chevron-left" :disabled="loading || page <= 1" aria-label="Previous page" @click="changePage(page - 1)" />
             <span aria-live="polite">{{ localNumber(page) }} / {{ localNumber(totalPages) }}</span>
-            <UButton type="button" size="lg" color="neutral" variant="outline" icon="i-lucide-chevron-left" :disabled="loading || page >= totalPages" aria-label="راتلونکې پاڼه" @click="changePage(page + 1)" />
+            <UButton type="button" size="lg" color="neutral" variant="outline" icon="i-lucide-chevron-right" :disabled="loading || page >= totalPages" aria-label="Next page" @click="changePage(page + 1)" />
           </nav>
         </footer>
       </template>
       <div v-else-if="loaded && !serviceMessage" class="patients-state patients-empty">
         <span class="patients-empty-icon"><UIcon :name="appliedSearch ? 'i-lucide-search' : 'i-lucide-users-round'" aria-hidden="true" /></span>
-        <h3>{{ appliedSearch ? 'ناروغان ونه موندل شول' : 'لا ناروغان نه دي ثبت شوي' }}</h3>
-        <p>{{ appliedSearch ? 'بل نوم، کوډ یا ټیلیفون ولیکئ او بیا لټون وکړئ.' : 'خپل لومړی ناروغ ثبت کړئ.' }}</p>
-        <UButton v-if="appliedSearch" type="button" size="lg" color="neutral" variant="outline" @click="search = ''; applySearch()">ټول ناروغان وښایئ</UButton>
-        <UButton v-else type="button" size="lg" icon="i-lucide-plus" @click="addPatient">نوی ناروغ</UButton>
+        <h3>{{ appliedSearch ? 'No patients found' : 'No patients registered yet' }}</h3>
+        <p>{{ appliedSearch ? 'Try another name, code or phone number.' : 'Register your first patient.' }}</p>
+        <UButton v-if="appliedSearch" type="button" size="lg" color="neutral" variant="outline" @click="search = ''; applySearch()">Show all patients</UButton>
+        <UButton v-else type="button" size="lg" icon="i-lucide-plus" @click="addPatient">New patient</UButton>
       </div>
     </section>
 

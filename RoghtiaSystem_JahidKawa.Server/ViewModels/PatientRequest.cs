@@ -25,6 +25,12 @@ namespace RoghtiaSystem_JahidKawa.Server.ViewModels
         public int PageSize { get; set; } = 20;
         [StringLength(200)]
         public string? Search { get; set; }
+        [StringLength(200)]
+        public string? Name { get; set; }
+        [StringLength(32)]
+        public string? Phone { get; set; }
+        [RegularExpression("^(Male|Female|Other)$")]
+        public string? Gender { get; set; }
     }
     public record PatientUserResponse(int Id, string UserName);
     public record PatientResponse(int Id, string Code, string Name, string Phone, int Age, string Gender, string Address, PatientUserResponse User);

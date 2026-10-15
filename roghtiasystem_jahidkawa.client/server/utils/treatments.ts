@@ -1,7 +1,8 @@
 import { createError, getHeader, getQuery, getRouterParam, type H3Event } from 'h3'
-import type { TreatmentInput } from '../../shared/types/treatment'
+import { prescriptionFrequencies, type TreatmentInput } from '../../shared/types/treatment'
 
 const invalid = () => createError({ statusCode: 400, data: { code: 'VALIDATION_ERROR' } })
+const allowedFrequencies = new Set<string>(prescriptionFrequencies)
 
 export function readTreatmentId(event: H3Event) {
   const value = getRouterParam(event, 'id') || ''
@@ -49,16 +50,23 @@ export async function readTreatmentInput(event: H3Event): Promise<TreatmentInput
   try { value = JSON.parse(raw.toString('utf8')) } catch { throw invalid() }
   if (!value || !Number.isInteger(value.patientId) || value.patientId! < 1 || value.patientId! > 2147483647 ||
       typeof value.bloodPressure !== 'string' || !/^(?:|[1-9][0-9]{1,2}\/[1-9][0-9]{1,2})$/.test(value.bloodPressure.trim()) ||
+      (value.additionalInstructions !== undefined && (typeof value.additionalInstructions !== 'string' || value.additionalInstructions.trim().length > 2000)) ||
       !Array.isArray(value.clinicalNoteIds) || value.clinicalNoteIds.length > 20 ||
       value.clinicalNoteIds.some(id => !Number.isInteger(id) || id < 1 || id > 2147483647) ||
       new Set(value.clinicalNoteIds).size !== value.clinicalNoteIds.length ||
+      !Array.isArray(value.additionalInstructionIds) || value.additionalInstructionIds.length > 20 ||
+      value.additionalInstructionIds.some(id => !Number.isInteger(id) || id < 1 || id > 2147483647) ||
+      new Set(value.additionalInstructionIds).size !== value.additionalInstructionIds.length ||
       !Array.isArray(value.prescriptionItems) || value.prescriptionItems.length > 30 ||
       value.prescriptionItems.some(item => !item || !Number.isInteger(item.medicationId) || item.medicationId < 1 || item.medicationId > 2147483647 ||
-        typeof item.duration !== 'string' || !item.duration.trim() || item.duration.trim().length > 100 ||
-        !Number.isInteger(item.refills) || item.refills < 0 || item.refills > 100)) throw invalid()
+        !Number.isInteger(item.dose) || item.dose < 1 || item.dose > 2147483647 ||
+        (item.frequency !== undefined && (typeof item.frequency !== 'string' || !allowedFrequencies.has(item.frequency))) ||
+        typeof item.duration !== 'string' || !item.duration.trim() || item.duration.trim().length > 100) ||
+      (value.allowInsufficientStock !== undefined && typeof value.allowInsufficientStock !== 'boolean')) throw invalid()
   return {
-    patientId: value.patientId!, bloodPressure: value.bloodPressure.trim(), clinicalNoteIds: [...value.clinicalNoteIds],
-    prescriptionItems: value.prescriptionItems.map(item => ({ medicationId: item.medicationId, duration: item.duration.trim(), refills: item.refills }))
+    patientId: value.patientId!, bloodPressure: value.bloodPressure.trim(), additionalInstructions: value.additionalInstructions?.trim() ?? '', clinicalNoteIds: [...value.clinicalNoteIds], additionalInstructionIds: [...value.additionalInstructionIds],
+    prescriptionItems: value.prescriptionItems.map(item => ({ medicationId: item.medicationId, dose: item.dose, frequency: item.frequency ?? 'Once daily', duration: item.duration.trim() })),
+    allowInsufficientStock: value.allowInsufficientStock === true
   }
 }
 

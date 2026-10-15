@@ -1,19 +1,19 @@
 import { today, toCalendar, PersianCalendar } from '@internationalized/date'
 import type { DateValue } from '@internationalized/date'
-export const JALALI_LOCALE = 'fa-IR-u-ca-persian-nu-latn'
+export const JALALI_LOCALE = 'en-US-u-ca-persian-nu-latn'
 export const JALALI_WEEKDAY_LABELS: Record<string, string> = {
-  'شنبه': 'شنبه',
-  'یکشنبه': 'یک',
-  'دوشنبه': 'دو',
-  'سه‌شنبه': 'سه',
-  'چهارشنبه': 'چهار',
-  'پنجشنبه': 'پنج',
-  'جمعه': 'جمعه'
+  'Saturday': 'Sat',
+  'Sunday': 'Sun',
+  'Monday': 'Mon',
+  'Tuesday': 'Tue',
+  'Wednesday': 'Wed',
+  'Thursday': 'Thu',
+  'Friday': 'Fri'
 }
-// Explicit labels keep the requested Pashto spelling identical in every browser.
+// English transliterations of Afghan solar calendar months.
 export const JALALI_MONTH_NAMES = [
-  'وری', 'غویی', 'غبرګولی', 'چنګاښ', 'زمری', 'وږی',
-  'تله', 'لړم', 'لیندۍ', 'مرغومی', 'سلواغه', 'کب'
+  'Hamal', 'Sawr', 'Jawza', 'Saratan', 'Asad', 'Sunbula',
+  'Mizan', 'Aqrab', 'Qaws', 'Jadi', 'Dalwa', 'Hut'
 ] as const
 type JalaliDate = DateValue
 export const localNumber = (value: number | string) => String(value).replace(/[۰-۹]/g, digit => '0123456789'['۰۱۲۳۴۵۶۷۸۹'.indexOf(digit)]!)
@@ -23,12 +23,12 @@ export const formatJalali = (date: JalaliDate, weekday = false) => {
   const parts = new Intl.DateTimeFormat(JALALI_LOCALE, { year: 'numeric', month: 'long', day: 'numeric', ...(weekday ? { weekday: 'long' as const } : {}), timeZone: 'Asia/Kabul' }).formatToParts(date.toDate('Asia/Kabul'))
   const part = (type: Intl.DateTimeFormatPartTypes) => parts.find(value => value.type === type)?.value ?? ''
   // Keep the shared display compact and omit Intl's Latin "AP" era marker.
-  return `${weekday ? `${part('weekday')}، ` : ''}${part('day')} ${formatJalaliMonth(date)} ${part('year')}`
+  return `${weekday ? `${part('weekday')}, ` : ''}${part('day')} ${formatJalaliMonth(date)} ${part('year')}`
 }
 export const formatJalaliDateTime = (utc: string) => {
   const date = new Date(utc)
   if (Number.isNaN(date.getTime())) return ''
   const parts = new Intl.DateTimeFormat(JALALI_LOCALE, { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Kabul' }).formatToParts(date)
   const part = (type: Intl.DateTimeFormatPartTypes) => parts.find(value => value.type === type)?.value ?? ''
-  return `${localNumber(part('day'))} ${JALALI_MONTH_NAMES[Number(part('month')) - 1]} ${localNumber(part('year'))}، ${localNumber(part('hour'))}:${localNumber(part('minute'))}`
+  return `${localNumber(part('day'))} ${JALALI_MONTH_NAMES[Number(part('month')) - 1]} ${localNumber(part('year'))}, ${localNumber(part('hour'))}:${localNumber(part('minute'))}`
 }

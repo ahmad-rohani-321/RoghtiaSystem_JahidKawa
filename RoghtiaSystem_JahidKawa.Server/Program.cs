@@ -63,7 +63,7 @@ builder.Services.AddSingleton<PINCodeService>();
 builder.Services.AddSingleton<TokenService>();
 builder.Services.AddControllers().ConfigureApiBehaviorOptions(options =>
 {
-    options.InvalidModelStateResponseFactory = _ => new BadRequestObjectResult(new AuthError("VALIDATION_ERROR", "مهرباني وکړئ د فورمې معلومات وګورئ."));
+    options.InvalidModelStateResponseFactory = _ => new BadRequestObjectResult(new AuthError("VALIDATION_ERROR", "Please check the form details."));
 });
 builder.Services.AddOpenApi();
 builder.Services.AddDbContext<MainDbContext>(options => options.UseSqlite(connectionString));
@@ -107,12 +107,12 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJw
             context.HandleResponse();
             context.Response.StatusCode = StatusCodes.Status401Unauthorized;
             context.Response.Headers.CacheControl = "no-store";
-            await context.Response.WriteAsJsonAsync(new AuthError("UNAUTHENTICATED", "بیا خپل حساب ته ننوځئ."));
+            await context.Response.WriteAsJsonAsync(new AuthError("UNAUTHENTICATED", "Please sign in again."));
         },
         OnForbidden = async context =>
         {
             context.Response.StatusCode = StatusCodes.Status403Forbidden;
-            await context.Response.WriteAsJsonAsync(new AuthError("FORBIDDEN", "تاسو د دې کار اجازه نه لرئ."));
+            await context.Response.WriteAsJsonAsync(new AuthError("FORBIDDEN", "You do not have permission to perform this action."));
         }
     };
 });
@@ -136,7 +136,7 @@ builder.Services.AddRateLimiter(options =>
     {
         context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
         context.HttpContext.Response.Headers.RetryAfter = "60";
-        await context.HttpContext.Response.WriteAsJsonAsync(new AuthError("TOO_MANY_REQUESTS", "لږ وروسته بیا هڅه وکړئ."), cancellationToken);
+        await context.HttpContext.Response.WriteAsJsonAsync(new AuthError("TOO_MANY_REQUESTS", "Please try again later."), cancellationToken);
     };
 });
 

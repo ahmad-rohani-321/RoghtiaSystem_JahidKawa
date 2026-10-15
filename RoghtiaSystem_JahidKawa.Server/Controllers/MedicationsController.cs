@@ -80,7 +80,7 @@ namespace RoghtiaSystem_JahidKawa.Server.Controllers
         }
 
         private NotFoundObjectResult MedicationNotFound()
-            => NotFound(new AuthError("NOT_FOUND", "درمل ونه موندل شول."));
+            => NotFound(new AuthError("NOT_FOUND", "Medication not found."));
 
         private static void ApplyChanges(Medication medication, MedicationRequest request)
         {

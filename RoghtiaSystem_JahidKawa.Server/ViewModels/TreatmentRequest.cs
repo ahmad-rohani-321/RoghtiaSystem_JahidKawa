@@ -8,10 +8,15 @@ namespace RoghtiaSystem_JahidKawa.Server.ViewModels
         public int? PatientId { get; set; }
         [RegularExpression(@"^$|^[1-9][0-9]{1,2}/[1-9][0-9]{1,2}$"), StringLength(16)]
         public string? BloodPressure { get; set; }
+        [StringLength(2000)]
+        public string? AdditionalInstructions { get; set; }
         [Required, MaxLength(20)]
         public List<int>? ClinicalNoteIds { get; set; }
+        [Required, MaxLength(20)]
+        public List<int>? AdditionalInstructionIds { get; set; }
         [Required, MaxLength(30)]
         public List<PrescriptionItemRequest>? PrescriptionItems { get; set; }
+        public bool AllowInsufficientStock { get; set; }
     }
 
     public class PrescriptionItemRequest
@@ -20,11 +25,19 @@ namespace RoghtiaSystem_JahidKawa.Server.ViewModels
         public int? MedicationId { get; set; }
         [Required, StringLength(100, MinimumLength = 1)]
         public string? Duration { get; set; }
-        [Required, Range(0, 100)]
-        public int? Refills { get; set; }
+        [Required, Range(1, int.MaxValue)]
+        public int? Dose { get; set; }
+        [Required, StringLength(64, MinimumLength = 1)]
+        public string? Frequency { get; set; }
     }
 
     public class ClinicalNoteRequest
+    {
+        [Required, StringLength(300, MinimumLength = 1)]
+        public string? Text { get; set; }
+    }
+
+    public class AdditionalInstructionRequest
     {
         [Required, StringLength(300, MinimumLength = 1)]
         public string? Text { get; set; }
@@ -44,10 +57,11 @@ namespace RoghtiaSystem_JahidKawa.Server.ViewModels
     }
 
     public record ClinicalNoteResponse(int Id, string Text);
-    public record PrescriptionItemResponse(int Id, int Position, int MedicationId, string MedicationName, string MedicationType, string Duration, int Refills);
+    public record AdditionalInstructionResponse(int Id, string Text);
+    public record PrescriptionItemResponse(int Id, int Position, int MedicationId, string MedicationName, string MedicationType, int Dose, string Frequency, string Duration);
     public record TreatmentPatientResponse(int Id, string Code, string Name, string Phone, int Age, string Gender, string Address);
     public record TreatmentSummaryResponse(int Id, DateTime RecordedAtUtc, TreatmentPatientResponse Patient, string BloodPressure, int MedicationCount, int ClinicalNoteCount);
-    public record TreatmentResponse(int Id, DateTime RecordedAtUtc, TreatmentPatientResponse Patient, string BloodPressure,
-        IReadOnlyList<ClinicalNoteResponse> ClinicalNotes, IReadOnlyList<PrescriptionItemResponse> PrescriptionItems);
+    public record TreatmentResponse(int Id, DateTime RecordedAtUtc, TreatmentPatientResponse Patient, string BloodPressure, string AdditionalInstructions,
+        IReadOnlyList<ClinicalNoteResponse> ClinicalNotes, IReadOnlyList<AdditionalInstructionResponse> AdditionalInstructionItems, IReadOnlyList<PrescriptionItemResponse> PrescriptionItems);
     public record TreatmentListResponse(IReadOnlyList<TreatmentSummaryResponse> Items, int Total, int Page, int PageSize);
 }

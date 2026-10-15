@@ -1,4 +1,5 @@
 import type { Medication, MedicationInput, MedicationPage, MedicationQuery } from '#shared/types/medication'
+import { notifyDashboardDataChanged } from '~/utils/dashboardRefresh'
 
 export function useMedications() {
   const requestFetch = useRequestFetch()
@@ -16,16 +17,20 @@ export function useMedications() {
     return { name: input.name, type: input.type, quantity: input.quantity, remarks: input.remarks }
   }
 
-  function create(input: MedicationInput) {
-    return $fetch<Medication>('/api/medications', {
+  async function create(input: MedicationInput) {
+    const medication = await $fetch<Medication>('/api/medications', {
       method: 'POST', body: inputBody(input), headers: { 'x-roghtia-request': '1' }, retry: 0
     })
+    notifyDashboardDataChanged()
+    return medication
   }
 
-  function update(id: number, input: MedicationInput) {
-    return $fetch<Medication>(`/api/medications/${encodeURIComponent(id)}`, {
+  async function update(id: number, input: MedicationInput) {
+    const medication = await $fetch<Medication>(`/api/medications/${encodeURIComponent(id)}`, {
       method: 'PUT', body: inputBody(input), headers: { 'x-roghtia-request': '1' }, retry: 0
     })
+    notifyDashboardDataChanged()
+    return medication
   }
 
   return { list, get, create, update }

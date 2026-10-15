@@ -48,11 +48,11 @@ async function load() {
     if (current !== sequence || userId !== auth.user.value?.id) return
     const failure = error as { statusCode?: number, status?: number }
     if ((failure.statusCode || failure.status) === 401) {
-      toast.add({ title: 'بیا ننوځئ', description: 'ستاسې ناسته پای ته رسېدلې ده.', color: 'warning' })
+      toast.add({ title: 'Sign in again', description: 'Your session has expired.', color: 'warning' })
       await navigateTo('/login')
       return
     }
-    errorMessage.value = 'د تداویو لېست را نه وړل شو. مهرباني وکړئ بیا هڅه وکړئ.'
+    errorMessage.value = 'Unable to load treatments. Please try again.'
   } finally { if (current === sequence) loading.value = false }
 }
 
@@ -67,7 +67,7 @@ async function showDetail(item: TreatmentSummary) {
   catch (error: unknown) {
     const failure = error as { statusCode?: number, status?: number }
     if ((failure.statusCode || failure.status) === 401) await navigateTo('/login')
-    else toast.add({ title: 'جزیات را نه وړل شول', description: 'مهرباني وکړئ بیا هڅه وکړئ.', color: 'error' })
+    else toast.add({ title: 'Unable to load details', description: 'Please try again.', color: 'error' })
   } finally { detailLoadingId.value = null }
 }
 
@@ -79,33 +79,33 @@ await load()
 </script>
 
 <template>
-  <section class="treatment-list" :aria-label="prescriptionsOnly ? 'نسخې' : 'تداوي'">
+  <section class="treatment-list" :aria-label="prescriptionsOnly ? 'Prescriptions' : 'Treatments'">
     <header class="page-heading">
-      <div><div class="eyebrow"><span /> {{ prescriptionsOnly ? 'ثبت شوې نسخې' : 'د ناروغانو درملنه' }}</div><h1>{{ prescriptionsOnly ? 'نسخې' : 'تداوي' }}</h1><p>{{ prescriptionsOnly ? 'خوندي شوې نسخې او د هغوی درمل وګورئ.' : 'د ناروغانو تداوي وګورئ او نوې تداوي ثبت کړئ.' }}</p></div>
-      <UButton to="/treatments/new" icon="i-lucide-plus" size="lg" class="new-button">نوې تداوي</UButton>
+      <div><div class="eyebrow"><span /> {{ prescriptionsOnly ? 'Saved prescriptions' : 'Patient care' }}</div><h1>{{ prescriptionsOnly ? 'Prescriptions' : 'Treatments' }}</h1><p>{{ prescriptionsOnly ? 'View saved prescriptions and their medications.' : 'View patient treatments and record a new treatment.' }}</p></div>
+      <UButton to="/treatments/new" icon="i-lucide-plus" size="lg" class="new-button">New treatment</UButton>
     </header>
-    <section class="panel list-panel" aria-label="د تداویو لېست" :aria-busy="loading">
+    <section class="panel list-panel" aria-label="Treatment list" :aria-busy="loading">
       <div class="filter-area">
-        <div class="filter-heading"><span class="filter-icon"><UIcon :name="prescriptionsOnly ? 'i-lucide-clipboard-plus' : 'i-lucide-stethoscope'" /></span><div><h2>{{ prescriptionsOnly ? 'د نسخو لېست' : 'د تداویو لېست' }}</h2><p aria-live="polite">{{ loaded ? `${localNumber(result.total)} ثبتونه` : 'ثبتونه را اخیستل کېږي' }}</p></div></div>
-        <div class="range-buttons" role="group" aria-label="د نېټې ډول">
-          <UButton v-for="option in ([['today', 'نن'], ['date', 'ټاکلې نېټه'], ['day', 'ورځ'], ['week', 'اونۍ'], ['month', 'میاشت']] as const)" :key="option[0]" type="button" size="sm" :color="mode === option[0] ? 'primary' : 'neutral'" :variant="mode === option[0] ? 'solid' : 'ghost'" :aria-pressed="mode === option[0]" @click="changeMode(option[0])">{{ option[1] }}</UButton>
+        <div class="filter-heading"><span class="filter-icon"><UIcon :name="prescriptionsOnly ? 'i-lucide-clipboard-plus' : 'i-lucide-stethoscope'" /></span><div><h2>{{ prescriptionsOnly ? 'Prescription list' : 'Treatment list' }}</h2><p aria-live="polite">{{ loaded ? `${localNumber(result.total)} records` : 'Loading records' }}</p></div></div>
+        <div class="range-buttons" role="group" aria-label="Date filter">
+          <UButton v-for="option in ([['today', 'Today'], ['date', 'Specific date'], ['day', 'Day'], ['week', 'Week'], ['month', 'Month']] as const)" :key="option[0]" type="button" size="sm" :color="mode === option[0] ? 'primary' : 'neutral'" :variant="mode === option[0] ? 'solid' : 'ghost'" :aria-pressed="mode === option[0]" @click="changeMode(option[0])">{{ option[1] }}</UButton>
         </div>
         <div class="filter-controls">
-          <form class="name-search" role="search" @submit.prevent="applyName"><UInput v-model="patientName" icon="i-lucide-search" placeholder="د ناروغ نوم ولټوئ" aria-label="د ناروغ نوم" :maxlength="200" size="lg" class="w-full" /><UButton type="submit" color="neutral" variant="outline" size="lg">لټون</UButton></form>
-          <div v-if="mode !== 'today'" class="date-controls"><UButton v-if="mode === 'day'" type="button" icon="i-lucide-chevron-right" color="neutral" variant="outline" aria-label="تېره ورځ" @click="moveDay(-1)" /><JalaliPicker v-model="selectedDate" /><UButton v-if="mode === 'day'" type="button" icon="i-lucide-chevron-left" color="neutral" variant="outline" aria-label="راتلونکې ورځ" @click="moveDay(1)" /></div>
+          <form class="name-search" role="search" @submit.prevent="applyName"><UInput v-model="patientName" icon="i-lucide-search" placeholder="Search patient name" aria-label="Patient name" :maxlength="200" size="lg" class="w-full" /><UButton type="submit" color="neutral" variant="outline" size="lg">Search</UButton></form>
+          <div v-if="mode !== 'today'" class="date-controls"><UButton v-if="mode === 'day'" type="button" icon="i-lucide-chevron-left" color="neutral" variant="outline" aria-label="Previous day" @click="moveDay(-1)" /><JalaliPicker v-model="selectedDate" /><UButton v-if="mode === 'day'" type="button" icon="i-lucide-chevron-right" color="neutral" variant="outline" aria-label="Next day" @click="moveDay(1)" /></div>
           <span v-else class="today-label">{{ formatJalali(jalaliToday()) }}</span>
         </div>
       </div>
-      <div v-if="errorMessage" class="list-error" role="alert"><UIcon name="i-lucide-circle-alert" /><span>{{ errorMessage }}</span><UButton color="neutral" variant="outline" @click="load">بیا هڅه وکړئ</UButton></div>
-      <div v-if="loading" class="list-state" role="status"><UIcon name="i-lucide-loader-circle" class="animate-spin" /><p>معلومات را اخیستل کېږي…</p></div>
+      <div v-if="errorMessage" class="list-error" role="alert"><UIcon name="i-lucide-circle-alert" /><span>{{ errorMessage }}</span><UButton color="neutral" variant="outline" @click="load">Try again</UButton></div>
+      <div v-if="loading" class="list-state" role="status"><UIcon name="i-lucide-loader-circle" class="animate-spin" /><p>Loading information…</p></div>
       <template v-else-if="loaded && result.items.length">
-        <div class="table-wrap"><table><caption class="sr-only">ثبت شوې تداوي</caption><thead><tr><th>ناروغ</th><th>کوډ</th><th>نېټه</th><th>د وینې فشار</th><th>درمل</th><th>یادښتونه</th><th><span class="sr-only">کړنې</span></th></tr></thead><tbody><tr v-for="item in result.items" :key="item.id"><td><strong><bdi>{{ item.patient.name }}</bdi></strong></td><td>{{ item.patient.code }}</td><td>{{ formatJalaliDateTime(item.recordedAtUtc) }}</td><td dir="ltr">{{ item.bloodPressure || '—' }}</td><td>{{ localNumber(item.medicationCount) }}</td><td>{{ localNumber(item.clinicalNoteCount) }}</td><td><div class="row-actions"><UButton type="button" color="neutral" variant="ghost" icon="i-lucide-eye" :loading="detailLoadingId === item.id" :disabled="detailLoadingId !== null" @click="showDetail(item)">جزیات</UButton><UButton :to="`/treatments/${item.id}/edit`" color="neutral" variant="ghost" icon="i-lucide-pencil-line">سمون</UButton><UButton :to="`/treatments/${item.id}/print`" color="neutral" variant="ghost" icon="i-lucide-printer">چاپ</UButton></div></td></tr></tbody></table></div>
-        <div class="mobile-list"><article v-for="item in result.items" :key="item.id" class="treatment-card"><header><div><h3><bdi>{{ item.patient.name }}</bdi></h3><p>{{ item.patient.code }} · {{ formatJalaliDateTime(item.recordedAtUtc) }}</p></div><span class="medicine-count">{{ localNumber(item.medicationCount) }} درمل</span></header><div class="card-meta"><span>فشار: <bdi dir="ltr">{{ item.bloodPressure || '—' }}</bdi></span><span>{{ localNumber(item.clinicalNoteCount) }} یادښتونه</span></div><div class="card-actions"><UButton type="button" color="neutral" variant="outline" icon="i-lucide-eye" :loading="detailLoadingId === item.id" :disabled="detailLoadingId !== null" @click="showDetail(item)">جزیات</UButton><UButton :to="`/treatments/${item.id}/edit`" color="neutral" variant="outline" icon="i-lucide-pencil-line">سمون</UButton><UButton :to="`/treatments/${item.id}/print`" color="neutral" variant="outline" icon="i-lucide-printer">چاپ</UButton></div></article></div>
-        <footer class="list-footer"><span>{{ localNumber((page - 1) * pageSize + 1) }}–{{ localNumber((page - 1) * pageSize + result.items.length) }} له {{ localNumber(result.total) }}</span><nav aria-label="پاڼې"><UButton icon="i-lucide-chevron-right" color="neutral" variant="outline" :disabled="page <= 1 || loading" aria-label="مخکینۍ پاڼه" @click="changePage(page - 1)" /><span>{{ localNumber(page) }} / {{ localNumber(totalPages) }}</span><UButton icon="i-lucide-chevron-left" color="neutral" variant="outline" :disabled="page >= totalPages || loading" aria-label="راتلونکې پاڼه" @click="changePage(page + 1)" /></nav></footer>
+        <div class="table-wrap"><table><caption class="sr-only">Recorded treatments</caption><thead><tr><th>Patient</th><th>Code</th><th>Date</th><th>Blood pressure</th><th>Medications</th><th>Notes</th><th><span class="sr-only">Actions</span></th></tr></thead><tbody><tr v-for="item in result.items" :key="item.id"><td><strong><bdi>{{ item.patient.name }}</bdi></strong></td><td>{{ item.patient.code }}</td><td>{{ formatJalaliDateTime(item.recordedAtUtc) }}</td><td dir="ltr">{{ item.bloodPressure || '—' }}</td><td>{{ localNumber(item.medicationCount) }}</td><td>{{ localNumber(item.clinicalNoteCount) }}</td><td><div class="row-actions"><UButton type="button" color="neutral" variant="ghost" icon="i-lucide-eye" :loading="detailLoadingId === item.id" :disabled="detailLoadingId !== null" @click="showDetail(item)">Details</UButton><UButton :to="`/treatments/${item.id}/edit`" color="neutral" variant="ghost" icon="i-lucide-pencil-line">Edit</UButton><UButton :to="`/treatments/${item.id}/print`" color="neutral" variant="ghost" icon="i-lucide-printer">Print</UButton></div></td></tr></tbody></table></div>
+        <div class="mobile-list"><article v-for="item in result.items" :key="item.id" class="treatment-card"><header><div><h3><bdi>{{ item.patient.name }}</bdi></h3><p>{{ item.patient.code }} · {{ formatJalaliDateTime(item.recordedAtUtc) }}</p></div><span class="medicine-count">{{ localNumber(item.medicationCount) }} Medications</span></header><div class="card-meta"><span>BP: <bdi dir="ltr">{{ item.bloodPressure || '—' }}</bdi></span><span>{{ localNumber(item.clinicalNoteCount) }} Notes</span></div><div class="card-actions"><UButton type="button" color="neutral" variant="outline" icon="i-lucide-eye" :loading="detailLoadingId === item.id" :disabled="detailLoadingId !== null" @click="showDetail(item)">Details</UButton><UButton :to="`/treatments/${item.id}/edit`" color="neutral" variant="outline" icon="i-lucide-pencil-line">Edit</UButton><UButton :to="`/treatments/${item.id}/print`" color="neutral" variant="outline" icon="i-lucide-printer">Print</UButton></div></article></div>
+        <footer class="list-footer"><span>{{ localNumber((page - 1) * pageSize + 1) }}–{{ localNumber((page - 1) * pageSize + result.items.length) }} of {{ localNumber(result.total) }}</span><nav aria-label="pages"><UButton icon="i-lucide-chevron-left" color="neutral" variant="outline" :disabled="page <= 1 || loading" aria-label="Previous page" @click="changePage(page - 1)" /><span>{{ localNumber(page) }} / {{ localNumber(totalPages) }}</span><UButton icon="i-lucide-chevron-right" color="neutral" variant="outline" :disabled="page >= totalPages || loading" aria-label="Next page" @click="changePage(page + 1)" /></nav></footer>
       </template>
-      <div v-else-if="loaded && !errorMessage" class="list-state"><span class="empty-icon"><UIcon name="i-lucide-clipboard-list" /></span><h3>{{ appliedName ? 'ناروغ ونه موندل شو' : 'په دې موده کې تداوي نشته' }}</h3><p>{{ appliedName ? 'بل نوم ولیکئ یا د نېټې موده بدله کړئ.' : 'نوې تداوي ثبت کړئ یا بله نېټه وټاکئ.' }}</p><UButton v-if="!prescriptionsOnly" to="/treatments/new" icon="i-lucide-plus">نوې تداوي</UButton></div>
+      <div v-else-if="loaded && !errorMessage" class="list-state"><span class="empty-icon"><UIcon name="i-lucide-clipboard-list" /></span><h3>{{ appliedName ? 'Patient not found' : 'No treatments in this period' }}</h3><p>{{ appliedName ? 'Try another name or change the date range.' : 'Record a new treatment or choose another date.' }}</p><UButton v-if="!prescriptionsOnly" to="/treatments/new" icon="i-lucide-plus">New treatment</UButton></div>
     </section>
-    <TreatmentDetail v-model:open="detailOpen" :treatment="detail" />
+    <TreatmentDetail v-if="detail" v-model:open="detailOpen" :treatment="detail" />
   </section>
 </template>
 

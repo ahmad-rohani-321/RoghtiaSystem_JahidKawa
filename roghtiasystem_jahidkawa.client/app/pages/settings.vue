@@ -2,7 +2,7 @@
 import type { FormError, FormErrorEvent } from '@nuxt/ui'
 import type { DoctorImageField, DoctorInformation } from '#shared/types/doctor-information'
 
-useHead({ title: 'تنظیمات — روغتیا' })
+useHead({ title: 'Settings — Roghtia' })
 
 const profile = useDoctorInformation()
 const auth = useAuth()
@@ -16,16 +16,16 @@ const pinOpen = ref(false)
 const serviceMessage = ref('')
 const revision = ref(0)
 const fields = [
-  { name: 'doctorNamePashto', label: 'د ډاکټر نوم په پښتو', max: 160, direction: 'rtl' },
-  { name: 'doctorNameEnglish', label: 'د ډاکټر نوم په انګلیسي', max: 160, direction: 'ltr' },
-  { name: 'doctorProfessionPashto', label: 'د ډاکټر مسلک په پښتو', max: 200, direction: 'rtl' },
-  { name: 'doctorProfessionEnglish', label: 'د ډاکټر مسلک په انګلیسي', max: 200, direction: 'ltr' },
-  { name: 'hospitalNamePashto', label: 'د روغتون نوم په پښتو', max: 200, direction: 'rtl' }
+  { name: 'doctorNamePashto', label: 'Doctor name (Pashto)', max: 160, direction: 'auto' },
+  { name: 'doctorNameEnglish', label: 'Doctor name (English)', max: 160, direction: 'ltr' },
+  { name: 'doctorProfessionPashto', label: 'Doctor profession (Pashto)', max: 200, direction: 'auto' },
+  { name: 'doctorProfessionEnglish', label: 'Doctor profession (English)', max: 200, direction: 'ltr' },
+  { name: 'hospitalNamePashto', label: 'Hospital name (Pashto)', max: 200, direction: 'auto' }
 ] as const
 const imageFields: { name: DoctorImageField, label: string, portrait?: boolean }[] = [
-  { name: 'doctorPhoto', label: 'د ډاکټر انځور', portrait: true },
-  { name: 'doctorLogo', label: 'د ډاکټر لوګو' },
-  { name: 'hospitalLogo', label: 'د روغتون لوګو' }
+  { name: 'doctorPhoto', label: 'Doctor photo', portrait: true },
+  { name: 'doctorLogo', label: 'Doctor logo' },
+  { name: 'hospitalLogo', label: 'Hospital logo' }
 ]
 const form = reactive({ doctorNameEnglish: '', doctorNamePashto: '', doctorProfessionPashto: '', doctorProfessionEnglish: '', hospitalNamePashto: '' })
 const baseline = ref(JSON.stringify(form))
@@ -49,13 +49,13 @@ function populate(value: DoctorInformation | null) {
 function validate(state: typeof form): FormError[] {
   const errors: FormError[] = []
   for (const field of fields) {
-    if (state[field.name].trim().length > field.max) errors.push({ name: field.name, message: `دا برخه باید تر ${field.max === 160 ? '160' : '200'} تورو ډېره نه وي.` })
+    if (state[field.name].trim().length > field.max) errors.push({ name: field.name, message: `This field must not exceed ${field.max === 160 ? '160' : '200'} characters.` })
   }
   for (const field of imageFields) {
     const file = images[field.name].file
     if (!file) continue
-    if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) errors.push({ name: field.name, message: 'یوازې PNG، JPEG او WebP انځورونه منل کېږي.' })
-    if (file.size === 0 || file.size > 2 * 1024 * 1024) errors.push({ name: field.name, message: 'انځور باید تش نه وي او له 2 مېګابایټه لوی نه وي.' })
+    if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) errors.push({ name: field.name, message: 'Only PNG, JPEG and WebP images are accepted.' })
+    if (file.size === 0 || file.size > 2 * 1024 * 1024) errors.push({ name: field.name, message: 'Image must not be empty or larger than 2 MB.' })
   }
   return errors
 }
@@ -69,22 +69,22 @@ async function showError(error: unknown, title: string, notify = true) {
   const code = failure.data?.data?.code || failure.data?.code
   const status = failure.statusCode || failure.status
   const messages: Record<string, string> = {
-    INVALID_IMAGE: 'انځور ناسم دی. یو سم PNG، JPEG یا WebP انځور وټاکئ.',
-    IMAGE_TOO_LARGE: 'د هر انځور اندازه باید له 2 مېګابایټه زیاته نه وي.',
-    VALIDATION_ERROR: 'معلومات او انځورونه وګورئ او بیا هڅه وکړئ.',
-    DOCTOR_INFORMATION_EXISTS: 'ستاسې معلومات مخکې خوندي شوي دي. پاڼه تازه کړئ او بیا هڅه وکړئ.',
-    NOT_FOUND: 'معلومات ونه موندل شول. پاڼه تازه کړئ او بیا هڅه وکړئ.',
-    TOO_MANY_REQUESTS: 'ډېرې هڅې شوې دي. لږ وروسته بیا هڅه وکړئ.',
-    INVALID_ORIGIN: 'غوښتنه ونه منل شوه. پاڼه تازه کړئ او بیا هڅه وکړئ.'
+    INVALID_IMAGE: 'Invalid image. Select a valid PNG, JPEG or WebP image.',
+    IMAGE_TOO_LARGE: 'Each image must not exceed 2 MB.',
+    VALIDATION_ERROR: 'Check the information and images, then try again.',
+    DOCTOR_INFORMATION_EXISTS: 'Your information has already been saved. Refresh the page and try again.',
+    NOT_FOUND: 'Information not found. Refresh the page and try again.',
+    TOO_MANY_REQUESTS: 'Too many attempts. Please try again later.',
+    INVALID_ORIGIN: 'Request rejected. Refresh the page and try again.'
   }
   if (status === 401) {
-    toast.add({ title: 'بیا ننوځئ', description: 'ستاسې ناسته پای ته رسېدلې ده. بیا خپل حساب ته ننوځئ.', color: 'warning' })
+    toast.add({ title: 'Sign in again', description: 'Your session has expired. Please sign in again.', color: 'warning' })
     resetOpen.value = false
     await auth.refresh()
     await navigateTo('/login')
     return
   }
-  serviceMessage.value = messages[code || ''] || (status === 429 ? messages.TOO_MANY_REQUESTS! : 'له سرور سره اړیکه ونه نیول شوه. مهرباني وکړئ بیا هڅه وکړئ.')
+  serviceMessage.value = messages[code || ''] || (status === 429 ? messages.TOO_MANY_REQUESTS! : 'Unable to connect to the server. Please try again.')
   if (notify) toast.add({ title, description: serviceMessage.value, color: 'error' })
 }
 
@@ -97,7 +97,7 @@ async function loadInformation() {
     populate(await profile.load(true))
     loaded.value = true
   } catch (error) {
-    await showError(error, 'معلومات را نه وړل شول', false)
+    await showError(error, 'Unable to load information', false)
   } finally {
     loading.value = false
   }
@@ -117,9 +117,9 @@ async function save() {
       body.set(removeField, String(image.removed))
     }
     populate(await profile.save(body))
-    toast.add({ title: 'معلومات خوندي شول', description: 'ستاسې د ډاکټر معلومات تازه شول.', color: 'success', icon: 'i-lucide-circle-check' })
+    toast.add({ title: 'Information saved', description: 'Your doctor information has been updated.', color: 'success', icon: 'i-lucide-circle-check' })
   } catch (error) {
-    await showError(error, 'معلومات خوندي نه شول')
+    await showError(error, 'Information could not be saved')
   } finally {
     pending.value = false
   }
@@ -132,9 +132,9 @@ async function reset() {
   try {
     populate(await profile.reset())
     resetOpen.value = false
-    toast.add({ title: 'لومړني حالت ته راوګرځېدل', description: 'ستاسې د ډاکټر معلومات او انځورونه پاک شول.', color: 'success' })
+    toast.add({ title: 'Defaults restored', description: 'Your doctor information and images have been cleared.', color: 'success' })
   } catch (error) {
-    await showError(error, 'معلومات بېرته را ونه ګرځېدل')
+    await showError(error, 'Unable to restore defaults')
   } finally {
     pending.value = false
   }
@@ -158,26 +158,26 @@ onMounted(loadInformation)
   <section class="settings-page" aria-labelledby="settings-title">
     <div class="page-heading">
       <div>
-        <div class="eyebrow"><span /> ستاسې حساب، ستاسې معلومات</div>
-        <h1 id="settings-title">تنظیمات</h1>
-        <p>د ډاکټر او روغتون معلومات دلته سمبال کړئ.</p>
+        <div class="eyebrow"><span /> Your account, your information</div>
+        <h1 id="settings-title">Settings</h1>
+        <p>Manage doctor and hospital information here.</p>
       </div>
     </div>
 
     <section class="panel doctor-settings" aria-labelledby="doctor-information-title" :aria-busy="busy">
       <header class="settings-section-heading">
         <span class="settings-section-icon" aria-hidden="true"><UIcon name="i-lucide-stethoscope" /></span>
-        <div><h2 id="doctor-information-title">د ډاکټر اړوند معلومات</h2><p>نومونه، مسلک او انځورونه د خپل حساب لپاره خوندي کړئ.</p></div>
+        <div><h2 id="doctor-information-title">Doctor information</h2><p>Save names, profession and images for your account.</p></div>
       </header>
 
       <div v-if="loading" class="settings-state" role="status">
         <UIcon name="i-lucide-loader-circle" class="animate-spin" aria-hidden="true" />
-        <p>معلومات را اخیستل کېږي…</p>
+        <p>Loading information…</p>
       </div>
       <div v-else-if="!loaded" class="settings-state">
         <UIcon name="i-lucide-cloud-off" aria-hidden="true" />
-        <p role="alert">{{ serviceMessage || 'معلومات را نه وړل شول.' }}</p>
-        <UButton type="button" color="neutral" variant="outline" size="lg" icon="i-lucide-refresh-cw" @click="loadInformation">بیا هڅه وکړئ</UButton>
+        <p role="alert">{{ serviceMessage || 'Unable to load information.' }}</p>
+        <UButton type="button" color="neutral" variant="outline" size="lg" icon="i-lucide-refresh-cw" @click="loadInformation">Try again</UButton>
       </div>
       <UForm v-else ref="doctorForm" :state="form" :validate="validate" :disabled="busy" novalidate class="doctor-form" @submit="save" @error="focusError">
         <div class="settings-text-grid">
@@ -187,8 +187,8 @@ onMounted(loadInformation)
         </div>
 
         <div class="settings-images-section">
-          <h3>انځورونه او لوګوګانې</h3>
-          <p class="settings-section-note">د انځور بدلونونه د خوندي کولو له تڼۍ وروسته ثبتېږي.</p>
+          <h3>Photos and logos</h3>
+          <p class="settings-section-note">Image changes are applied when you save.</p>
           <div class="settings-images-grid">
             <SettingsImageInput v-for="field in imageFields" :key="`${revision}-${field.name}`" v-model="images[field.name].file" v-model:removed="images[field.name].removed" :name="field.name" :label="field.label" :current="profile.information.value?.[field.name]" :portrait="field.portrait" :disabled="busy" />
           </div>
@@ -196,30 +196,30 @@ onMounted(loadInformation)
 
         <p v-if="serviceMessage" class="settings-message" role="alert">{{ serviceMessage }}</p>
         <footer class="settings-actions">
-          <span class="settings-save-state" aria-live="polite"><UIcon :name="dirty ? 'i-lucide-pencil-line' : 'i-lucide-circle-check'" aria-hidden="true" />{{ dirty ? 'بدلونونه لا نه دي خوندي شوي' : 'ټول معلومات تازه دي' }}</span>
+          <span class="settings-save-state" aria-live="polite"><UIcon :name="dirty ? 'i-lucide-pencil-line' : 'i-lucide-circle-check'" aria-hidden="true" />{{ dirty ? 'You have unsaved changes' : 'All information is up to date' }}</span>
           <div class="settings-buttons">
-            <UButton type="button" color="neutral" variant="outline" size="lg" icon="i-lucide-rotate-ccw" :disabled="!canReset" @click="confirmReset">بیا تنظیمول</UButton>
-            <UButton type="submit" size="lg" icon="i-lucide-save" :loading="pending && !resetOpen" :disabled="busy || !dirty" >بدلونونه خوندي کړئ</UButton>
+            <UButton type="button" color="neutral" variant="outline" size="lg" icon="i-lucide-rotate-ccw" :disabled="!canReset" @click="confirmReset">Reset</UButton>
+            <UButton type="submit" size="lg" icon="i-lucide-save" :loading="pending && !resetOpen" :disabled="busy || !dirty" >Save changes</UButton>
           </div>
         </footer>
       </UForm>
     </section>
 
-    <UModal :open="resetOpen" title="لومړني حالت ته بېرته ګرځول" description="ستاسې خوندي شوي د ډاکټر معلومات او درې واړه انځورونه به پاک شي، او فورمه به تشه شي. دا بدلون بېرته نه شي راګرځېدای." :dismissible="!pending" :close="pending ? false : { 'aria-label': 'تړل' }" :content="{ dir: 'rtl' }" :ui="{ content: 'min-w-0', wrapper: 'min-w-0 pe-8', body: 'min-w-0 min-h-0', title: 'text-lg break-words', description: 'text-base leading-8 break-words' }" @update:open="value => { if (!pending) resetOpen = value }">
-      <template #body><p>ټول معلومات لومړني حالت ته راوګرځوو؟</p><p v-if="serviceMessage" class="settings-message" role="alert">{{ serviceMessage }}</p></template>
+    <UModal :open="resetOpen" title="Restore defaults" description="Your saved doctor information and all three images will be cleared. This action cannot be undone." :dismissible="!pending" :close="pending ? false : { 'aria-label': 'Close' }" :content="{ dir: 'ltr' }" :ui="{ content: 'min-w-0', wrapper: 'min-w-0 pe-8', body: 'min-w-0 min-h-0', title: 'text-lg break-words', description: 'text-base leading-8 break-words' }" @update:open="value => { if (!pending) resetOpen = value }">
+      <template #body><p>Reset all information to defaults?</p><p v-if="serviceMessage" class="settings-message" role="alert">{{ serviceMessage }}</p></template>
       <template #footer>
         <div class="settings-reset-actions">
-          <UButton type="button" size="lg" icon="i-lucide-rotate-ccw" :loading="pending" :disabled="pending" @click="reset">هو، بیا تنظیمول</UButton>
-          <UButton type="button" size="lg" color="neutral" variant="outline" :disabled="pending" @click="resetOpen = false">بندول</UButton>
+          <UButton type="button" size="lg" icon="i-lucide-rotate-ccw" :loading="pending" :disabled="pending" @click="reset">Yes, reset</UButton>
+          <UButton type="button" size="lg" color="neutral" variant="outline" :disabled="pending" @click="resetOpen = false">Cancel</UButton>
         </div>
       </template>
     </UModal>
     <section class="panel pin-settings" aria-labelledby="pin-settings-title">
       <header class="settings-section-heading">
         <span class="settings-section-icon" aria-hidden="true"><UIcon name="i-lucide-key-round" /></span>
-        <div><h2 id="pin-settings-title">د پټنوم بیا تنظیمولو PIN</h2><p>د پټنوم د هېرېدو لپاره PIN وټاکئ یا یې بدل کړئ. پخواني حسابونه هم دلته PIN ټاکلی شي.</p></div>
+        <div><h2 id="pin-settings-title">Password recovery PIN</h2><p>Choose a recovery PIN or update it. Existing accounts can also set a PIN here.</p></div>
       </header>
-      <div class="pin-settings-action"><UButton type="button" size="lg" icon="i-lucide-shield-check" @click="pinOpen = true">PIN ټاکل یا بدلول</UButton></div>
+      <div class="pin-settings-action"><UButton type="button" size="lg" icon="i-lucide-shield-check" @click="pinOpen = true">Set or change PIN</UButton></div>
     </section>
     <PINCodeModal v-model:open="pinOpen" />
   </section>

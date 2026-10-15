@@ -6,7 +6,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
     try {
       await auth.refresh()
     } catch {
-      throw createError({ statusCode: 503, statusMessage: 'د ننوتلو خدمت ته لاسرسی نشته. بیا هڅه وکړئ.' })
+      throw createError({ statusCode: 503, statusMessage: 'Sign-in service is unavailable. Please try again.' })
     }
   }
   const publicPage = ['/login', '/register', '/reset-password'].includes(to.path)

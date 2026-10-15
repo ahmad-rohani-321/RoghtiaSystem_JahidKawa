@@ -9,8 +9,10 @@ namespace RoghtiaSystem_JahidKawa.Server.Data.Models
         public Patient Patient { get; set; } = null!;
         public DateTime RecordedAtUtc { get; set; }
         public string BloodPressure { get; set; } = string.Empty;
+        public string AdditionalInstructions { get; set; } = string.Empty;
         public List<PrescriptionItem> PrescriptionItems { get; set; } = [];
         public List<TreatmentClinicalNote> ClinicalNotes { get; set; } = [];
+        public List<TreatmentAdditionalInstruction> AdditionalInstructionItems { get; set; } = [];
     }
 
     public class PrescriptionItem
@@ -23,8 +25,10 @@ namespace RoghtiaSystem_JahidKawa.Server.Data.Models
         public int Position { get; set; }
         public string MedicationName { get; set; } = string.Empty;
         public string MedicationType { get; set; } = string.Empty;
+        public int Dose { get; set; }
+        public bool StockDeducted { get; set; }
+        public string Frequency { get; set; } = "Once daily";
         public string Duration { get; set; } = string.Empty;
-        public int Refills { get; set; }
     }
 
     public class ClinicalNote
@@ -41,5 +45,21 @@ namespace RoghtiaSystem_JahidKawa.Server.Data.Models
         public Treatment Treatment { get; set; } = null!;
         public int ClinicalNoteId { get; set; }
         public ClinicalNote ClinicalNote { get; set; } = null!;
+    }
+
+    public class AdditionalInstruction
+    {
+        public int Id { get; set; }
+        public int UserId { get; set; }
+        public Users User { get; set; } = null!;
+        public string Text { get; set; } = string.Empty;
+    }
+
+    public class TreatmentAdditionalInstruction
+    {
+        public int TreatmentId { get; set; }
+        public Treatment Treatment { get; set; } = null!;
+        public int AdditionalInstructionId { get; set; }
+        public AdditionalInstruction AdditionalInstruction { get; set; } = null!;
     }
 }

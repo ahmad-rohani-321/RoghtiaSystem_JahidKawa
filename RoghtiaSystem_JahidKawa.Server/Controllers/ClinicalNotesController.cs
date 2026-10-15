@@ -28,7 +28,7 @@ namespace RoghtiaSystem_JahidKawa.Server.Controllers
         public async Task<IActionResult> Create([FromBody] ClinicalNoteRequest request, CancellationToken cancellationToken)
         {
             var text = request.Text!.Trim();
-            if (text.Length == 0) return BadRequest(new AuthError("VALIDATION_ERROR", "یادښت ولیکئ."));
+            if (text.Length == 0) return BadRequest(new AuthError("VALIDATION_ERROR", "Enter a note."));
             var existing = await context.ClinicalNotes.AsNoTracking().Where(n => n.UserId == LoggedInUserId && n.Text == text)
                 .Select(n => new ClinicalNoteResponse(n.Id, n.Text)).SingleOrDefaultAsync(cancellationToken);
             if (existing != null) return Ok(existing);

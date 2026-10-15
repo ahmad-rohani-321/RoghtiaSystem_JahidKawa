@@ -12,7 +12,9 @@ import { DatabaseSync } from 'node:sqlite'
 
 const clientRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const serverRoot = resolve(clientRoot, '../RoghtiaSystem_JahidKawa.Server')
-const serverDll = resolve(serverRoot, 'bin/Debug/net10.0/RoghtiaSystem_JahidKawa.Server.dll')
+const serverDll = process.env.ROGHTIA_TEST_SERVER_DLL
+  ? resolve(process.env.ROGHTIA_TEST_SERVER_DLL)
+  : resolve(serverRoot, 'bin/Debug/net10.0/RoghtiaSystem_JahidKawa.Server.dll')
 const processes = []
 const signingKey = randomBytes(64).toString('base64')
 const password = 'پټنوم-' + randomBytes(12).toString('hex')
@@ -126,7 +128,8 @@ async function doctorRequest(origin, session, method = 'GET', options = {}) {
   const headers = origin === api ? { authorization: `Bearer ${session.token}` } : { cookie: session.cookie }
   if (method !== 'GET' && origin !== api) Object.assign(headers, { 'x-roghtia-request': '1', origin })
   return fetch(origin + (options.path ?? '/api/doctor-information'), {
-    method, redirect: 'manual', headers: { ...headers, ...options.headers }, body: options.body
+    method, redirect: 'manual', headers: { ...headers, ...options.headers },
+    ...(options.body === undefined ? {} : { body: options.body })
   })
 }
 
@@ -136,7 +139,7 @@ async function medicationRequest(origin, session, method = 'GET', options = {}) 
   if (options.body !== undefined) headers['content-type'] = 'application/json'
   return fetch(origin + (options.path ?? '/api/medications'), {
     method, redirect: 'manual', headers: { ...headers, ...options.headers },
-    body: options.body === undefined ? undefined : JSON.stringify(options.body)
+    ...(options.body === undefined ? {} : { body: JSON.stringify(options.body) })
   })
 }
 
@@ -156,6 +159,21 @@ test('patients enforce ownership, validation, immutable per-user codes and concu
   assert.equal((await secondOwner.json()).code, 'RT-1')
   for (const origin of [api, web]) {
     assert.equal((await fetch(origin + '/api/patients')).status, 401)
+    assert.equal((await fetch(origin + '/api/patients/by-code/RT-1')).status, 401)
+    const ownerCode = await request(origin, owner, 'GET', '/api/patients/by-code/RT-1')
+    assert.equal(ownerCode.status, 200)
+    assert.equal((await ownerCode.json()).id, patient.id)
+    const otherCode = await request(origin, other, 'GET', '/api/patients/by-code/RT-1')
+    assert.equal(otherCode.status, 200)
+    assert.equal((await otherCode.json()).name, 'Private Other Patient')
+    assert.equal((await request(origin, other, 'GET', '/api/patients/by-code/RT-2')).status, 404)
+    const filteredByFields = await request(origin, owner, 'GET', '/api/patients?name=Patient&phone=700123&gender=Male')
+    assert.equal(filteredByFields.status, 200)
+    const matches = await filteredByFields.json()
+    assert.equal(matches.total, 1)
+    assert.equal(matches.items[0].id, patient.id)
+    const outsideFilter = await request(origin, other, 'GET', '/api/patients?name=Patient%20One')
+    assert.equal((await outsideFilter.json()).total, 0)
     assert.equal((await request(origin, other, 'GET', `/api/patients/${patient.id}`)).status, 404)
     assert.equal((await request(origin, other, 'PUT', `/api/patients/${patient.id}`, fields)).status, 404)
     const updated = await request(origin, owner, 'PUT', `/api/patients/${patient.id}`, { ...fields, age: 33, code: 'RT-888', userId: other.user.id })
@@ -187,6 +205,50 @@ test('patients enforce ownership, validation, immutable per-user codes and concu
   const html = await (await fetch(web + '/patients', { headers: { cookie: owner.cookie } })).text()
   assert.ok(html.includes('Patient One'))
   assert.ok(!html.includes('Private Other Patient'))
+  const treatmentHtml = await (await fetch(web + '/treatments/new', { headers: { cookie: owner.cookie } })).text()
+  assert.ok(treatmentHtml.includes('Patient code'))
+  assert.ok(treatmentHtml.includes('Find patient'))
+  assert.ok(treatmentHtml.includes('Register patient'))
+  const medication = await medicationRequest(web, owner, 'POST', {
+    body: { name: 'Treatment test tablet', type: 'Tablets', quantity: 20, remarks: '' }
+  })
+  assert.equal(medication.status, 201)
+  const medicationId = (await medication.json()).id
+  const savedTreatment = await medicationRequest(web, owner, 'POST', {
+    path: '/api/treatments', body: {
+      patientId: patient.id, bloodPressure: '120/80', clinicalNoteIds: [],
+      prescriptionItems: [{ medicationId, dose: 7, duration: '7 days', refills: 0 }]
+    }
+  })
+  assert.equal(savedTreatment.status, 201)
+  const treatment = await savedTreatment.json()
+  assert.equal(treatment.patient.code, 'RT-1')
+  assert.equal(treatment.patient.name, 'Patient One')
+  assert.equal(treatment.prescriptionItems[0].medicationType, 'Tablets')
+  assert.equal(treatment.prescriptionItems[0].dose, 7)
+  assert.equal((await (await medicationRequest(web, owner, 'GET', { path: `/api/medications/${medicationId}` })).json()).quantity, 13)
+  const insufficientInput = {
+    patientId: patient.id, bloodPressure: '', clinicalNoteIds: [],
+    prescriptionItems: [{ medicationId, dose: 14, duration: '14 days', refills: 0 }]
+  }
+  const insufficient = await medicationRequest(web, owner, 'POST', { path: '/api/treatments', body: insufficientInput })
+  assert.equal(insufficient.status, 409)
+  assert.equal((await insufficient.json()).data.code, 'INSUFFICIENT_STOCK')
+  assert.equal((await (await medicationRequest(web, owner, 'GET', { path: `/api/medications/${medicationId}` })).json()).quantity, 13)
+  const continued = await medicationRequest(web, owner, 'POST', {
+    path: '/api/treatments', body: { ...insufficientInput, allowInsufficientStock: true }
+  })
+  assert.equal(continued.status, 201)
+  assert.equal((await (await medicationRequest(web, owner, 'GET', { path: `/api/medications/${medicationId}` })).json()).quantity, 13)
+  const editedTreatment = await medicationRequest(web, owner, 'PUT', {
+    path: `/api/treatments/${treatment.id}`, body: {
+      patientId: patient.id, bloodPressure: '118/78', clinicalNoteIds: [],
+      prescriptionItems: [{ medicationId, dose: 5, duration: '5 days', refills: 0 }]
+    }
+  })
+  assert.equal(editedTreatment.status, 200)
+  assert.equal((await editedTreatment.json()).prescriptionItems[0].dose, 5)
+  assert.equal((await (await medicationRequest(web, owner, 'GET', { path: `/api/medications/${medicationId}` })).json()).quantity, 15)
   await stop(apiProcess)
   apiProcess = await startApi(apiPort, join(temporaryRoot, 'users.db'))
   const afterRestart = await request(api, owner, 'POST', '/api/patients', fields)
@@ -232,10 +294,12 @@ test('protected pages redirect to login; public forms remain standalone', async 
     const response = await fetch(web + path)
     assert.equal(response.status, 200)
     const html = await response.text()
+    assert.match(html, /<html[^>]*lang="en"/)
+    assert.match(html, /<html[^>]*dir="ltr"/)
     assert.ok(!html.includes('bottom-nav'))
     assert.ok(!html.includes('class="topbar"'))
     assert.ok(html.includes(path === '/login' ? 'current-password' : path === '/register' ? 'new-password' : 'pinCode'))
-    assert.equal(html.includes('ما په یاد وساتئ'), path === '/login')
+    assert.equal(html.includes('Remember me'), path === '/login')
     if (path === '/login') assert.ok(html.includes('href="/reset-password"'))
   }
 })

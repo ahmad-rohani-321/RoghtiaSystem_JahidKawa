@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { Medication, MedicationPage } from '#shared/types/medication'
 
-useHead({ title: 'درمل — روغتیا' })
+useHead({ title: 'Medications — Roghtia' })
 
 const api = useMedications()
 const auth = useAuth()
@@ -28,7 +28,7 @@ let searchTimer: ReturnType<typeof setTimeout> | undefined
 async function handleExpiredSession() {
   result.value = { items: [], total: 0, page: 1, pageSize }
   formOpen.value = false
-  if (import.meta.client) toast.add({ title: 'بیا ننوځئ', description: 'ستاسې ناسته پای ته رسېدلې ده. بیا خپل حساب ته ننوځئ.', color: 'warning' })
+  if (import.meta.client) toast.add({ title: 'Sign in again', description: 'Your session has expired. Please sign in again.', color: 'warning' })
   try { await auth.refresh() } catch { /* The login route checks authentication again. */ }
   await nuxtApp.runWithContext(() => navigateTo('/login'))
 }
@@ -56,10 +56,10 @@ async function load() {
     const status = failure.statusCode || failure.status
     if (status === 401) return await handleExpiredSession()
     serviceMessage.value = status === 429
-      ? 'ډېرې هڅې شوې دي. لږ وروسته بیا هڅه وکړئ.'
+      ? 'Too many attempts. Please try again later.'
       : status === 403
-        ? 'تاسې د دې معلوماتو د لیدلو اجازه نه لرئ.'
-        : 'د درملو لېست را نه وړل شو. مهرباني وکړئ بیا هڅه وکړئ.'
+        ? 'You do not have permission to view this information.'
+        : 'Unable to load medications. Please try again.'
   } finally {
     if (sequence === requestSequence) loading.value = false
   }
@@ -100,7 +100,7 @@ async function editMedication(medication: Medication) {
     const failure = error as { statusCode?: number, status?: number }
     const status = failure.statusCode || failure.status
     if (status === 401) return await handleExpiredSession()
-    toast.add({ title: 'معلومات را نه وړل شول', description: status === 404 ? 'دا درمل ونه موندل شول. لېست تازه کړئ.' : 'مهرباني وکړئ بیا هڅه وکړئ.', color: 'error' })
+    toast.add({ title: 'Unable to load information', description: status === 404 ? 'Medication not found. Refresh the list.' : 'Please try again.', color: 'error' })
   } finally {
     if (sequence === editSequence) editingId.value = null
   }
@@ -151,11 +151,11 @@ await load()
   <section class="medications-page" aria-labelledby="medications-title">
     <header class="page-heading">
       <div>
-        <div class="eyebrow"><span /> ستاسې د درملو لېست</div>
-        <h1 id="medications-title">درمل</h1>
-        <p>درمل ثبت کړئ، معلومات یې وګورئ او تازه یې وساتئ.</p>
+        <div class="eyebrow"><span /> Your medication list</div>
+        <h1 id="medications-title">Medications</h1>
+        <p>Register medications, view their details and keep them up to date.</p>
       </div>
-      <UButton type="button" icon="i-lucide-plus" size="lg" class="add-medication-button" @click="addMedication">نوي درمل</UButton>
+      <UButton type="button" icon="i-lucide-plus" size="lg" class="add-medication-button" @click="addMedication">New medication</UButton>
     </header>
 
     <section class="panel medications-panel" aria-labelledby="medications-list-title" :aria-busy="loading">
@@ -163,31 +163,31 @@ await load()
         <div class="medications-list-heading">
           <span class="medications-icon" aria-hidden="true"><UIcon name="i-lucide-pill" /></span>
           <div>
-            <h2 id="medications-list-title">{{ appliedSearch ? 'د لټون پایلې' : 'ثبت شوي درمل' }}</h2>
-            <p aria-live="polite">{{ loaded ? `${localNumber(result.total)} درمل` : 'ستاسې د حساب درمل' }}</p>
+            <h2 id="medications-list-title">{{ appliedSearch ? 'Search results' : 'Registered medications' }}</h2>
+            <p aria-live="polite">{{ loaded ? `${localNumber(result.total)} Medications` : 'Your medications' }}</p>
           </div>
         </div>
         <form class="medications-search" role="search" @submit.prevent="applySearch">
-          <UInput v-model="search" name="medicationSearch" icon="i-lucide-search" placeholder="د نوم یا ډول له مخې لټون" aria-label="د درملو لټون" :maxlength="200" size="xl" class="w-full" :ui="{ base: 'medications-search-input' }" />
-          <UButton type="submit" size="lg" color="neutral" variant="outline" :loading="loading" aria-label="درمل ولټوئ">لټون</UButton>
+          <UInput v-model="search" name="medicationSearch" icon="i-lucide-search" placeholder="Search by name or type" aria-label="Search medications" :maxlength="200" size="xl" class="w-full" :ui="{ base: 'medications-search-input' }" />
+          <UButton type="submit" size="lg" color="neutral" variant="outline" :loading="loading" aria-label="Search medications">Search</UButton>
         </form>
       </header>
 
       <div v-if="serviceMessage" class="medications-error" role="alert">
         <UIcon name="i-lucide-circle-alert" aria-hidden="true" />
         <p>{{ serviceMessage }}</p>
-        <UButton type="button" size="lg" color="neutral" variant="outline" icon="i-lucide-refresh-cw" :loading="loading" :disabled="loading" @click="load">بیا هڅه وکړئ</UButton>
+        <UButton type="button" size="lg" color="neutral" variant="outline" icon="i-lucide-refresh-cw" :loading="loading" :disabled="loading" @click="load">Try again</UButton>
       </div>
 
       <div v-if="loading" class="medications-state" role="status">
         <UIcon name="i-lucide-loader-circle" class="animate-spin" aria-hidden="true" />
-        <p>درمل را اخیستل کېږي…</p>
+        <p>Loading medications…</p>
       </div>
       <template v-else-if="loaded && result.items.length">
         <div class="medications-table-wrap">
           <table class="medications-table">
-            <caption class="sr-only">ستاسې د درملو نومونه، ډولونه، مقدارونه او یادښتونه</caption>
-            <thead><tr><th scope="col">شمېره</th><th scope="col">د درملو نوم</th><th scope="col">ډول</th><th scope="col">مقدار</th><th scope="col">یادښت</th><th scope="col"><span class="sr-only">سمون</span></th></tr></thead>
+            <caption class="sr-only">Your medication names, types, quantities and remarks</caption>
+            <thead><tr><th scope="col">No.</th><th scope="col">Medication name</th><th scope="col">Type</th><th scope="col">Quantity</th><th scope="col">Remarks</th><th scope="col"><span class="sr-only">Edit</span></th></tr></thead>
             <tbody>
               <tr v-for="medication in result.items" :key="medication.id">
                 <td class="medication-id">{{ localNumber(medication.id) }}</td>
@@ -195,7 +195,7 @@ await load()
                 <td><span class="medication-type"><bdi>{{ medication.type }}</bdi></span></td>
                 <td><span class="medication-quantity">{{ localNumber(medication.quantity) }}</span></td>
                 <td><p class="medication-remarks" dir="auto">{{ medication.remarks || '—' }}</p></td>
-                <td><UButton type="button" color="neutral" variant="ghost" icon="i-lucide-pencil-line" size="lg" :loading="editingId === medication.id" :disabled="editingId !== null" :aria-label="`${medication.name}: سمون`" @click="editMedication(medication)">سمون</UButton></td>
+                <td><UButton type="button" color="neutral" variant="ghost" icon="i-lucide-pencil-line" size="lg" :loading="editingId === medication.id" :disabled="editingId !== null" :aria-label="`${medication.name}: Edit`" @click="editMedication(medication)">Edit</UButton></td>
               </tr>
             </tbody>
           </table>
@@ -204,32 +204,32 @@ await load()
         <div class="medications-cards">
           <article v-for="medication in result.items" :key="medication.id" class="medication-card">
             <header>
-              <div><p class="medication-id">شمېره {{ localNumber(medication.id) }}</p><h3><bdi>{{ medication.name }}</bdi></h3></div>
-              <UButton type="button" color="neutral" variant="outline" icon="i-lucide-pencil-line" size="lg" :loading="editingId === medication.id" :disabled="editingId !== null" :aria-label="`${medication.name}: سمون`" @click="editMedication(medication)">سمون</UButton>
+              <div><p class="medication-id">No. {{ localNumber(medication.id) }}</p><h3><bdi>{{ medication.name }}</bdi></h3></div>
+              <UButton type="button" color="neutral" variant="outline" icon="i-lucide-pencil-line" size="lg" :loading="editingId === medication.id" :disabled="editingId !== null" :aria-label="`${medication.name}: Edit`" @click="editMedication(medication)">Edit</UButton>
             </header>
             <dl>
-              <div><dt>ډول</dt><dd><bdi>{{ medication.type }}</bdi></dd></div>
-              <div><dt>مقدار</dt><dd class="medication-quantity">{{ localNumber(medication.quantity) }}</dd></div>
-              <div v-if="medication.remarks" class="medication-card-remarks"><dt>یادښت</dt><dd dir="auto">{{ medication.remarks }}</dd></div>
+              <div><dt>Type</dt><dd><bdi>{{ medication.type }}</bdi></dd></div>
+              <div><dt>Quantity</dt><dd class="medication-quantity">{{ localNumber(medication.quantity) }}</dd></div>
+              <div v-if="medication.remarks" class="medication-card-remarks"><dt>Remarks</dt><dd dir="auto">{{ medication.remarks }}</dd></div>
             </dl>
           </article>
         </div>
 
         <footer class="medications-pagination">
-          <p>{{ localNumber(rangeStart) }}–{{ localNumber(rangeEnd) }} له {{ localNumber(result.total) }} درملو څخه</p>
-          <nav aria-label="د درملو د پاڼو ټاکل">
-            <UButton type="button" size="lg" color="neutral" variant="outline" icon="i-lucide-chevron-right" :disabled="loading || page <= 1" aria-label="مخکینۍ پاڼه" @click="changePage(page - 1)" />
+          <p>{{ localNumber(rangeStart) }}–{{ localNumber(rangeEnd) }} of {{ localNumber(result.total) }} medications</p>
+          <nav aria-label="Medication pagination">
+            <UButton type="button" size="lg" color="neutral" variant="outline" icon="i-lucide-chevron-left" :disabled="loading || page <= 1" aria-label="Previous page" @click="changePage(page - 1)" />
             <span aria-live="polite">{{ localNumber(page) }} / {{ localNumber(totalPages) }}</span>
-            <UButton type="button" size="lg" color="neutral" variant="outline" icon="i-lucide-chevron-left" :disabled="loading || page >= totalPages" aria-label="راتلونکې پاڼه" @click="changePage(page + 1)" />
+            <UButton type="button" size="lg" color="neutral" variant="outline" icon="i-lucide-chevron-right" :disabled="loading || page >= totalPages" aria-label="Next page" @click="changePage(page + 1)" />
           </nav>
         </footer>
       </template>
       <div v-else-if="loaded && !serviceMessage" class="medications-state medications-empty">
         <span class="medications-empty-icon"><UIcon :name="appliedSearch ? 'i-lucide-search' : 'i-lucide-pill'" aria-hidden="true" /></span>
-        <h3>{{ appliedSearch ? 'درمل ونه موندل شول' : 'لا درمل نه دي ثبت شوي' }}</h3>
-        <p>{{ appliedSearch ? 'بل نوم یا ډول ولیکئ او بیا لټون وکړئ.' : 'د خپل لومړي درمل نوم، ډول او مقدار ثبت کړئ.' }}</p>
-        <UButton v-if="appliedSearch" type="button" size="lg" color="neutral" variant="outline" @click="search = ''; applySearch()">ټول درمل وښایئ</UButton>
-        <UButton v-else type="button" size="lg" icon="i-lucide-plus" @click="addMedication">نوي درمل</UButton>
+        <h3>{{ appliedSearch ? 'No medications found' : 'No medications registered yet' }}</h3>
+        <p>{{ appliedSearch ? 'Try another name or type.' : 'Register your first medication with its name, type and quantity.' }}</p>
+        <UButton v-if="appliedSearch" type="button" size="lg" color="neutral" variant="outline" @click="search = ''; applySearch()">Show all medications</UButton>
+        <UButton v-else type="button" size="lg" icon="i-lucide-plus" @click="addMedication">New medication</UButton>
       </div>
     </section>
 
