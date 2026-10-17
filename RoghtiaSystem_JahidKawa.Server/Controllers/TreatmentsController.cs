@@ -144,6 +144,7 @@ namespace RoghtiaSystem_JahidKawa.Server.Controllers
         public async Task<IActionResult> Update(int id, [FromBody] TreatmentRequest request, CancellationToken cancellationToken)
         {
             var treatment = await OwnedTreatments.Include(t => t.PrescriptionItems).Include(t => t.ClinicalNotes)
+                .Include(t => t.AdditionalInstructionItems)
                 .SingleOrDefaultAsync(t => t.Id == id, cancellationToken);
             if (treatment == null) return NotFound(new AuthError("NOT_FOUND", "Treatment not found."));
             var (error, medications) = await ValidateReferences(request, cancellationToken);

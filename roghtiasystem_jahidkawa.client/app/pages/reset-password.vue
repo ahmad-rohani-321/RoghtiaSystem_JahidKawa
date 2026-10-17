@@ -1,6 +1,6 @@
 <script setup>
 definePageMeta({ layout: false })
-useHead({ title: 'Reset password — Roghtia' })
+useHead({ title: 'Reset password — E-Roghtia' })
 
 const verification = reactive({ userName: '', pinCode: '' })
 const replacement = reactive({ newPassword: '', confirmPassword: '' })
@@ -94,7 +94,7 @@ function updatePIN(value) {
     <section class="reset-card">
       <div class="reset-intro">
         <span class="brand-icon reset-logo" aria-hidden="true"><UIcon name="i-lucide-heart-pulse" /></span>
-        <span class="reset-brand">Roghtia<span>.</span></span>
+        <span class="reset-brand">E-Roghtia<span>.</span></span>
         <h1 id="reset-title">Reset password</h1>
         <p v-if="step === 'verify'">Enter your username and the PIN you chose when creating your account.</p>
         <p v-else-if="step === 'replace'">PIN verified. Choose a new password.</p>

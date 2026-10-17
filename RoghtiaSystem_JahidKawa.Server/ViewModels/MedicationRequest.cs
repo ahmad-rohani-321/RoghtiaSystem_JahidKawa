@@ -13,13 +13,20 @@ namespace RoghtiaSystem_JahidKawa.Server.ViewModels
         [StringLength(100)]
         public string? Type { get; set; }
 
-        [Required]
         [Range(0, int.MaxValue)]
         [JsonNumberHandling(JsonNumberHandling.Strict)]
         public int? Quantity { get; set; }
 
         [StringLength(1000)]
         public string? Remarks { get; set; }
+    }
+
+    public class BulkMedicationRequest
+    {
+        [Required]
+        [MinLength(1)]
+        [MaxLength(50)]
+        public List<MedicationRequest>? Items { get; set; }
     }
 
     public class MedicationQuery

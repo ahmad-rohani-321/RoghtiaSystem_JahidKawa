@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { Medication, MedicationPage } from '#shared/types/medication'
 
-useHead({ title: 'Medications — Roghtia' })
+useHead({ title: 'Medications — E-Roghtia' })
 
 const api = useMedications()
 const auth = useAuth()
@@ -16,6 +16,7 @@ const loading = ref(true)
 const loaded = ref(false)
 const serviceMessage = ref('')
 const formOpen = ref(false)
+const bulkFormOpen = ref(false)
 const selected = ref<Medication | null>(null)
 const editingId = ref<number | null>(null)
 const totalPages = computed(() => Math.max(1, Math.ceil(result.value.total / pageSize)))
@@ -28,6 +29,7 @@ let searchTimer: ReturnType<typeof setTimeout> | undefined
 async function handleExpiredSession() {
   result.value = { items: [], total: 0, page: 1, pageSize }
   formOpen.value = false
+  bulkFormOpen.value = false
   if (import.meta.client) toast.add({ title: 'Sign in again', description: 'Your session has expired. Please sign in again.', color: 'warning' })
   try { await auth.refresh() } catch { /* The login route checks authentication again. */ }
   await nuxtApp.runWithContext(() => navigateTo('/login'))
@@ -121,6 +123,17 @@ async function onSaved(medication: Medication, created: boolean) {
   await load()
 }
 
+async function onBulkSaved(medications: Medication[]) {
+  const userId = auth.user.value?.id
+  if (!userId || medications.some(medication => medication.user.id !== userId)) return
+  clearTimeout(searchTimer)
+  search.value = ''
+  appliedSearch.value = ''
+  page.value = 1
+  loaded.value = false
+  await load()
+}
+
 watch(search, () => {
   clearTimeout(searchTimer)
   if (search.value.trim() === appliedSearch.value) return
@@ -135,6 +148,7 @@ watch(() => auth.user.value?.id, () => {
   loaded.value = false
   selected.value = null
   formOpen.value = false
+  bulkFormOpen.value = false
   editingId.value = null
 })
 
@@ -155,7 +169,10 @@ await load()
         <h1 id="medications-title">Medications</h1>
         <p>Register medications, view their details and keep them up to date.</p>
       </div>
-      <UButton type="button" icon="i-lucide-plus" size="lg" class="add-medication-button" @click="addMedication">New medication</UButton>
+      <div class="medication-create-actions">
+        <UButton type="button" color="neutral" variant="outline" icon="i-lucide-list-plus" size="lg" class="bulk-medication-button" @click="bulkFormOpen = true">Bulk add</UButton>
+        <UButton type="button" icon="i-lucide-plus" size="lg" class="add-medication-button" @click="addMedication">New medication</UButton>
+      </div>
     </header>
 
     <section class="panel medications-panel" aria-labelledby="medications-list-title" :aria-busy="loading">
@@ -234,6 +251,7 @@ await load()
     </section>
 
     <MedicationForm v-model:open="formOpen" :medication="selected" @saved="onSaved" />
+    <MedicationBulkForm v-model:open="bulkFormOpen" @saved="onBulkSaved" />
   </section>
 </template>
 
@@ -241,7 +259,9 @@ await load()
 .medications-page { width: 100%; min-width: 0; max-width: 1250px; margin-inline: auto; }
 .medications-page .page-heading > div { min-width: 0; }
 .medications-page .page-heading p { font-size: 1rem; line-height: 1.9; }
-.add-medication-button { flex-shrink: 0; min-height: 46px; font-size: 1rem; justify-content: center; }
+.medication-create-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; flex-shrink: 0; }
+.medication-create-actions > button { min-height: 46px; font-size: 1rem; justify-content: center; }
+.add-medication-button { flex-shrink: 0; }
 .medications-panel { min-width: 0; border-radius: 16px; overflow: hidden; }
 .medications-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 24px; padding: 24px; border-bottom: 1px solid var(--line); }
 .medications-list-heading { display: flex; align-items: center; gap: 13px; min-width: 0; }
@@ -315,7 +335,7 @@ await load()
   .medications-pagination { padding: 18px 16px; }
   .medications-pagination nav { margin-inline-start: auto; }
 }
-@media (max-width: 540px) { .add-medication-button { width: 100%; } }
+@media (max-width: 540px) { .medication-create-actions { width: 100%; } .medication-create-actions > button { flex: 1 1 150px; } }
 @media (max-width: 360px) {
   .medications-search { flex-wrap: wrap; }
   .medications-search > :first-child { flex-basis: 100%; }

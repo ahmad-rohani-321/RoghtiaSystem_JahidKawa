@@ -61,7 +61,7 @@ watch(credentials, () => { serviceMessage.value = '' })
     <section class="login-card">
       <div class="login-intro">
         <span class="brand-icon login-logo" aria-hidden="true"><UIcon name="i-lucide-heart-pulse" /></span>
-        <span class="login-brand">Roghtia<span>.</span></span>
+        <span class="login-brand">E-Roghtia<span>.</span></span>
         <h1 id="login-title">{{ isRegister ? 'Create an account' : 'Sign in to your account' }}</h1>
         <p>{{ isRegister ? 'Choose a username, password and recovery PIN for your new account.' : 'Enter your username and password to sign in.' }}</p>
       </div>

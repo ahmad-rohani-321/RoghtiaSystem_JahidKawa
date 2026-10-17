@@ -11,14 +11,36 @@ using RoghtiaSystem_JahidKawa.Server.Data;
 namespace RoghtiaSystem_JahidKawa.Server.Migrations
 {
     [DbContext(typeof(MainDbContext))]
-    [Migration("20261015083950_RemovePrescriptionRefills")]
-    partial class RemovePrescriptionRefills
+    [Migration("20261017053948_FirstMigration")]
+    partial class FirstMigration
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.12");
+
+            modelBuilder.Entity("RoghtiaSystem_JahidKawa.Server.Data.Models.AdditionalInstruction", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Text")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "Text")
+                        .IsUnique();
+
+                    b.ToTable("AdditionalInstructions");
+                });
 
             modelBuilder.Entity("RoghtiaSystem_JahidKawa.Server.Data.Models.ClinicalNote", b =>
                 {
@@ -271,6 +293,21 @@ namespace RoghtiaSystem_JahidKawa.Server.Migrations
                     b.ToTable("Treatments");
                 });
 
+            modelBuilder.Entity("RoghtiaSystem_JahidKawa.Server.Data.Models.TreatmentAdditionalInstruction", b =>
+                {
+                    b.Property<int>("TreatmentId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("AdditionalInstructionId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("TreatmentId", "AdditionalInstructionId");
+
+                    b.HasIndex("AdditionalInstructionId");
+
+                    b.ToTable("TreatmentAdditionalInstructions");
+                });
+
             modelBuilder.Entity("RoghtiaSystem_JahidKawa.Server.Data.Models.TreatmentClinicalNote", b =>
                 {
                     b.Property<int>("TreatmentId")
@@ -341,6 +378,17 @@ namespace RoghtiaSystem_JahidKawa.Server.Migrations
                         .IsUnique();
 
                     b.ToTable("Users");
+                });
+
+            modelBuilder.Entity("RoghtiaSystem_JahidKawa.Server.Data.Models.AdditionalInstruction", b =>
+                {
+                    b.HasOne("RoghtiaSystem_JahidKawa.Server.Data.Models.Users", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("RoghtiaSystem_JahidKawa.Server.Data.Models.ClinicalNote", b =>
@@ -423,6 +471,25 @@ namespace RoghtiaSystem_JahidKawa.Server.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("RoghtiaSystem_JahidKawa.Server.Data.Models.TreatmentAdditionalInstruction", b =>
+                {
+                    b.HasOne("RoghtiaSystem_JahidKawa.Server.Data.Models.AdditionalInstruction", "AdditionalInstruction")
+                        .WithMany()
+                        .HasForeignKey("AdditionalInstructionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("RoghtiaSystem_JahidKawa.Server.Data.Models.Treatment", "Treatment")
+                        .WithMany("AdditionalInstructionItems")
+                        .HasForeignKey("TreatmentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("AdditionalInstruction");
+
+                    b.Navigation("Treatment");
+                });
+
             modelBuilder.Entity("RoghtiaSystem_JahidKawa.Server.Data.Models.TreatmentClinicalNote", b =>
                 {
                     b.HasOne("RoghtiaSystem_JahidKawa.Server.Data.Models.ClinicalNote", "ClinicalNote")
@@ -444,6 +511,8 @@ namespace RoghtiaSystem_JahidKawa.Server.Migrations
 
             modelBuilder.Entity("RoghtiaSystem_JahidKawa.Server.Data.Models.Treatment", b =>
                 {
+                    b.Navigation("AdditionalInstructionItems");
+
                     b.Navigation("ClinicalNotes");
 
                     b.Navigation("PrescriptionItems");

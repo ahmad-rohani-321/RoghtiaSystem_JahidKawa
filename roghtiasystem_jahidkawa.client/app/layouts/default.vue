@@ -20,7 +20,7 @@ const menu = computed(() => [[{ type: 'label', label: displayName.value, descrip
   <div class="app-shell">
     <a href="#main" class="skip-link">Skip to main content</a>
     <header class="topbar">
-      <NuxtLink to="/" class="brand"><span class="brand-icon"><UIcon name="i-lucide-heart-pulse" /></span><span><strong>Roghtia<span class="brand-dot">.</span></strong><small>Your partner in care</small></span></NuxtLink>
+      <NuxtLink to="/" class="brand"><span class="brand-icon"><UIcon name="i-lucide-heart-pulse" /></span><span><strong>E-Roghtia<span class="brand-dot">.</span></strong><small>Your partner in care</small></span></NuxtLink>
       <BottomNavigation />
       <div class="header-actions">
         <UTooltip text="Toggle color theme"><UButton :icon="colorMode.value === 'dark' ? 'i-lucide-sun' : 'i-lucide-moon'" color="neutral" variant="ghost" aria-label="Toggle color theme" @click="colorMode.preference = colorMode.value === 'dark' ? 'light' : 'dark'" /></UTooltip>

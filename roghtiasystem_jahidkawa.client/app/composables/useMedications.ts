@@ -25,6 +25,14 @@ export function useMedications() {
     return medication
   }
 
+  async function createBulk(items: MedicationInput[]) {
+    const medications = await $fetch<Medication[]>('/api/medications/bulk', {
+      method: 'POST', body: { items: items.map(inputBody) }, headers: { 'x-roghtia-request': '1' }, retry: 0
+    })
+    notifyDashboardDataChanged()
+    return medications
+  }
+
   async function update(id: number, input: MedicationInput) {
     const medication = await $fetch<Medication>(`/api/medications/${encodeURIComponent(id)}`, {
       method: 'PUT', body: inputBody(input), headers: { 'x-roghtia-request': '1' }, retry: 0
@@ -33,5 +41,5 @@ export function useMedications() {
     return medication
   }
 
-  return { list, get, create, update }
+  return { list, get, create, createBulk, update }
 }

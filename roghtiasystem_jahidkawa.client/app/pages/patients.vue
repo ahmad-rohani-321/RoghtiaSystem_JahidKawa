@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { Patient, PatientPage } from '#shared/types/patient'
 
-useHead({ title: 'Patients — Roghtia' })
+useHead({ title: 'Patients — E-Roghtia' })
 
 const api = usePatients()
 const auth = useAuth()

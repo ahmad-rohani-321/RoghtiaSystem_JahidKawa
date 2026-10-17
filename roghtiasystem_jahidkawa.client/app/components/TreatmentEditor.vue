@@ -5,7 +5,7 @@ import { prescriptionFrequencies, type AdditionalInstruction, type ClinicalNote,
 
 const props = defineProps<{ treatmentId?: number }>()
 const editing = computed(() => props.treatmentId !== undefined)
-useHead({ title: editing.value ? 'Edit treatment — Roghtia' : 'New treatment — Roghtia' })
+useHead({ title: editing.value ? 'Edit treatment — E-Roghtia' : 'New treatment — E-Roghtia' })
 const patientsApi = usePatients()
 const medicationsApi = useMedications()
 const treatmentsApi = useTreatments()

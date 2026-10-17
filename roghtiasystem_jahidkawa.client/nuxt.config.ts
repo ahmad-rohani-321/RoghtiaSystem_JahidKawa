@@ -8,7 +8,7 @@ export default defineNuxtConfig({
     authApiBase: 'http://localhost:5201',
     authCookieSecure: process.env.NODE_ENV === 'production'
   },
-  app: { head: { htmlAttrs: { lang: 'en', dir: 'ltr' }, title: 'Roghtia — Healthcare Management', meta: [{ name: 'viewport', content: 'width=device-width, initial-scale=1, viewport-fit=cover' }, { name: 'description', content: 'Roghtia — Patient care and healthcare management' }] } },
+  app: { head: { htmlAttrs: { lang: 'en', dir: 'ltr' }, title: 'E-Roghtia — Healthcare Management', meta: [{ name: 'viewport', content: 'width=device-width, initial-scale=1, viewport-fit=cover' }, { name: 'description', content: 'E-Roghtia — Patient care and healthcare management' }] } },
   colorMode: { preference: 'light', fallback: 'light' },
   icon: { clientBundle: { scan: true } }
 })

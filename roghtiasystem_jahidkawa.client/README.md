@@ -1,4 +1,4 @@
-﻿# Roghtia · روغتیا
+﻿# E-Roghtia · روغتیا
 
 Nuxt 4, Vue 3 and Nuxt UI frontend with an ASP.NET Core 10 authentication API and encrypted SQLite storage.
 

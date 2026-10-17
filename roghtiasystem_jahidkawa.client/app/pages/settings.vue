@@ -2,7 +2,7 @@
 import type { FormError, FormErrorEvent } from '@nuxt/ui'
 import type { DoctorImageField, DoctorInformation } from '#shared/types/doctor-information'
 
-useHead({ title: 'Settings — Roghtia' })
+useHead({ title: 'Settings — E-Roghtia' })
 
 const profile = useDoctorInformation()
 const auth = useAuth()

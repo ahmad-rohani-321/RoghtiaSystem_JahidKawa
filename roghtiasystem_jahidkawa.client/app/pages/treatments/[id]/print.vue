@@ -44,12 +44,6 @@ async function loadTreatment() {
   try {
     treatment.value = await api.get(id)
     try { await doctor.load() } catch { /* The prescription remains printable without optional branding. */ }
-    if (route.query.auto === '1') {
-      await nextTick()
-      await document.fonts.ready
-      await Promise.all(Array.from(document.querySelectorAll('.print-sheet img')).map(image => (image as HTMLImageElement).decode().catch(() => {})))
-      window.print()
-    }
   } catch (error: unknown) {
     const failure = error as { statusCode?: number, status?: number }
     const status = failure.statusCode || failure.status
@@ -64,9 +58,17 @@ async function loadTreatment() {
     requestPending.value = false
     loading.value = false
   }
+
+  if (route.query.auto === '1' && treatment.value && !loadError.value) {
+    await nextTick()
+    await document.fonts.ready
+    await Promise.all(Array.from(document.querySelectorAll('.print-sheet img')).map(image => (image as HTMLImageElement).decode().catch(() => {})))
+    await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
+    window.print()
+  }
 }
 
-useHead({ title: `Prescription ${prescriptionNumber.value} — Roghtia` })
+useHead({ title: `Prescription ${prescriptionNumber.value} — E-Roghtia` })
 
 onMounted(loadTreatment)
 </script>

@@ -12,7 +12,7 @@ const nuxtApp = useNuxtApp()
 const form = useTemplateRef('medicationForm')
 const pending = ref(false)
 const serviceMessage = ref('')
-const state = reactive({ name: '', type: '', quantity: 0 as number | string, remarks: '' })
+const state = reactive({ name: '', type: 'Tablets', quantity: 0 as number | string, remarks: '' })
 const editing = computed(() => props.medication !== null)
 const medicationTypes = [
   'Tablets',
@@ -38,7 +38,7 @@ const medicationTypes = [
 function populate() {
   Object.assign(state, {
     name: props.medication?.name ?? '',
-    type: props.medication?.type ?? '',
+    type: props.medication?.type ?? 'Tablets',
     quantity: props.medication?.quantity ?? 0,
     remarks: props.medication?.remarks ?? ''
   })
@@ -52,7 +52,7 @@ function validate(value: typeof state): FormError[] {
   else if (value.name.trim().length > 200) errors.push({ name: 'name', message: 'Name must not exceed 200 characters.' })
   if (!value.type.trim()) errors.push({ name: 'type', message: 'Enter the medication type.' })
   else if (value.type.trim().length > 100) errors.push({ name: 'type', message: 'Type must not exceed 100 characters.' })
-  if (String(value.quantity).trim() === '' || !Number.isInteger(Number(value.quantity)) || Number(value.quantity) < 0 || Number(value.quantity) > 2147483647) {
+  if (String(value.quantity).trim() !== '' && (!Number.isInteger(Number(value.quantity)) || Number(value.quantity) < 0 || Number(value.quantity) > 2147483647)) {
     errors.push({ name: 'quantity', message: 'Quantity must be a whole number between 0 and 2147483647.' })
   }
   if (value.remarks.trim().length > 1000) errors.push({ name: 'remarks', message: 'Remarks must not exceed 1000 characters.' })
@@ -68,7 +68,7 @@ async function save() {
   pending.value = true
   serviceMessage.value = ''
   const created = !editing.value
-  const input: MedicationInput = { name: state.name.trim(), type: state.type.trim(), quantity: Number(state.quantity), remarks: state.remarks.trim() }
+  const input: MedicationInput = { name: state.name.trim(), type: state.type.trim(), quantity: String(state.quantity).trim() === '' ? 0 : Number(state.quantity), remarks: state.remarks.trim() }
   let saved: Medication | null = null
   try {
     saved = props.medication ? await api.update(props.medication.id, input) : await api.create(input)
@@ -78,6 +78,7 @@ async function save() {
     const code = failure.data?.data?.code || failure.data?.code
     const messages: Record<string, string> = {
       VALIDATION_ERROR: 'Check the form details and try again.',
+      DUPLICATE_MEDICATION: 'A medication with this name already exists in your list.',
       NOT_FOUND: 'Medication not found. Refresh the list and try again.',
       FORBIDDEN: 'You do not have permission to make this change.',
       INVALID_ORIGIN: 'Request rejected. Refresh the page and try again.',
@@ -105,7 +106,7 @@ async function save() {
 watch(open, (value) => {
   if (value) populate()
   else {
-    Object.assign(state, { name: '', type: '', quantity: 0, remarks: '' })
+    Object.assign(state, { name: '', type: 'Tablets', quantity: 0, remarks: '' })
     serviceMessage.value = ''
     form.value?.clear()
   }
@@ -137,7 +138,7 @@ watch(open, (value) => {
           <UFormField name="type" label="Medication type" size="lg" required :ui="{ label: 'text-base' }">
             <USelectMenu v-model="state.type" :items="medicationTypes" name="type" searchable searchable-placeholder="Search medication types" placeholder="Select medication type" size="xl" class="w-full" :ui="{ base: 'medication-input' }" />
           </UFormField>
-          <UFormField name="quantity" label="Quantity" size="lg" required :ui="{ label: 'text-base' }">
+          <UFormField name="quantity" label="Quantity" hint="Optional · defaults to 0" size="lg" :ui="{ label: 'text-base' }">
             <UInput v-model="state.quantity" name="quantity" type="number" inputmode="numeric" :min="0" :max="2147483647" :step="1" size="xl" class="w-full" :ui="{ base: 'medication-input' }" />
           </UFormField>
         </div>
