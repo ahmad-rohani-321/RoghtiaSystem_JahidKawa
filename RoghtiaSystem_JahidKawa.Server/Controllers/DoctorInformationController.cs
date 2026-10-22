@@ -78,6 +78,8 @@ namespace RoghtiaSystem_JahidKawa.Server.Controllers
             doctor.DoctorProfessionPashto = form.DoctorProfessionPashto?.Trim() ?? string.Empty;
             doctor.DoctorProfessionEnglish = form.DoctorProfessionEnglish?.Trim() ?? string.Empty;
             doctor.HospitalNamePashto = form.HospitalNamePashto?.Trim() ?? string.Empty;
+            doctor.HospitalAddress = form.HospitalAddress?.Trim() ?? string.Empty;
+            doctor.HospitalPhoneNumbers = form.HospitalPhoneNumbers?.Trim() ?? string.Empty;
             doctor.DoctorPhoto = form.RemoveDoctorPhoto ? null : doctorPhoto ?? doctor.DoctorPhoto;
             doctor.DoctorLogo = form.RemoveDoctorLogo ? null : doctorLogo ?? doctor.DoctorLogo;
             doctor.HospitalLogo = form.RemoveHospitalLogo ? null : hospitalLogo ?? doctor.HospitalLogo;
@@ -138,6 +140,8 @@ namespace RoghtiaSystem_JahidKawa.Server.Controllers
             MediaUrl(doctor?.DoctorLogo, "doctor-logo"),
             MediaUrl(doctor?.HospitalLogo, "hospital-logo"),
             doctor?.HospitalNamePashto ?? string.Empty,
+            doctor?.HospitalAddress ?? string.Empty,
+            doctor?.HospitalPhoneNumbers ?? string.Empty,
             LoggedInUserId,
             doctor != null);
 

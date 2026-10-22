@@ -92,12 +92,22 @@ namespace RoghtiaSystem_JahidKawa.Server.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("HospitalAddress")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("TEXT");
+
                     b.Property<byte[]>("HospitalLogo")
                         .HasColumnType("BLOB");
 
                     b.Property<string>("HospitalNamePashto")
                         .IsRequired()
                         .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("HospitalPhoneNumbers")
+                        .IsRequired()
+                        .HasMaxLength(300)
                         .HasColumnType("TEXT");
 
                     b.HasKey("LoggedInUserId");

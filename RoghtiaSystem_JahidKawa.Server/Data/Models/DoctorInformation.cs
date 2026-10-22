@@ -10,6 +10,8 @@ namespace RoghtiaSystem_JahidKawa.Server.Data.Models
         public byte[]? DoctorLogo { get; set; }
         public byte[]? HospitalLogo { get; set; }
         public string HospitalNamePashto { get; set; } = string.Empty;
+        public string HospitalAddress { get; set; } = string.Empty;
+        public string HospitalPhoneNumbers { get; set; } = string.Empty;
         public int LoggedInUserId { get; set; }
     }
 }

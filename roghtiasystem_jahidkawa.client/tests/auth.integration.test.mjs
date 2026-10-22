@@ -95,10 +95,12 @@ function signedToken(claims = {}) {
 
 const doctorDefaults = {
   doctorNameEnglish: '', doctorNamePashto: '', doctorProfessionPashto: '',
-  doctorProfessionEnglish: '', hospitalNamePashto: '',
+  doctorProfessionEnglish: '', hospitalNamePashto: '', hospitalAddress: '', hospitalPhoneNumbers: '',
   doctorPhoto: null, doctorLogo: null, hospitalLogo: null
 }
 const doctorFields = {
+  hospitalAddress: '123 Health Avenue, Kabul',
+  hospitalPhoneNumbers: '+93 70 123 4567, +93 20 123 4567',
   doctorNameEnglish: 'Dr. Ahmad', doctorNamePashto: 'ډاکټر احمد',
   doctorProfessionPashto: 'د داخله ناروغیو متخصص', doctorProfessionEnglish: 'Internal medicine',
   hospitalNamePashto: 'روغتیا روغتون'
@@ -583,6 +585,8 @@ test('doctor information CRUD, reset and SSR remain scoped to the signed-in user
   assert.equal(settings.status, 200)
   const html = await settings.text()
   assert.ok(html.includes(updatedName), 'Saved Pashto doctor name is present on authenticated Settings SSR')
+  assert.ok(html.includes(doctorFields.hospitalAddress), 'Hospital address is available on authenticated Settings SSR')
+  assert.ok(html.includes(doctorFields.hospitalPhoneNumbers), 'Hospital phone numbers are available on authenticated Settings SSR')
   assert.ok(html.includes(owner.user.userName), 'The signed-in username remains available')
   assert.ok(!html.includes(owner.token), 'JWT must stay out of the rendered Settings page')
 

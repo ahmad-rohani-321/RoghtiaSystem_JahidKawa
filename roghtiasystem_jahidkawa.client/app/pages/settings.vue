@@ -20,14 +20,16 @@ const fields = [
   { name: 'doctorNameEnglish', label: 'Doctor name (English)', max: 160, direction: 'ltr' },
   { name: 'doctorProfessionPashto', label: 'Doctor profession (Pashto)', max: 200, direction: 'auto' },
   { name: 'doctorProfessionEnglish', label: 'Doctor profession (English)', max: 200, direction: 'ltr' },
-  { name: 'hospitalNamePashto', label: 'Hospital name (Pashto)', max: 200, direction: 'auto' }
+  { name: 'hospitalNamePashto', label: 'Hospital name (Pashto)', max: 200, direction: 'auto' },
+  { name: 'hospitalAddress', label: 'Hospital address', max: 300, direction: 'auto' },
+  { name: 'hospitalPhoneNumbers', label: 'Hospital phone number(s)', max: 300, direction: 'ltr' }
 ] as const
 const imageFields: { name: DoctorImageField, label: string, portrait?: boolean }[] = [
   { name: 'doctorPhoto', label: 'Doctor photo', portrait: true },
   { name: 'doctorLogo', label: 'Doctor logo' },
   { name: 'hospitalLogo', label: 'Hospital logo' }
 ]
-const form = reactive({ doctorNameEnglish: '', doctorNamePashto: '', doctorProfessionPashto: '', doctorProfessionEnglish: '', hospitalNamePashto: '' })
+const form = reactive({ doctorNameEnglish: '', doctorNamePashto: '', doctorProfessionPashto: '', doctorProfessionEnglish: '', hospitalNamePashto: '', hospitalAddress: '', hospitalPhoneNumbers: '' })
 const baseline = ref(JSON.stringify(form))
 const images = reactive<Record<DoctorImageField, { file: File | null, removed: boolean }>>({
   doctorPhoto: { file: null, removed: false },
@@ -181,8 +183,8 @@ onMounted(loadInformation)
       </div>
       <UForm v-else ref="doctorForm" :state="form" :validate="validate" :disabled="busy" novalidate class="doctor-form" @submit="save" @error="focusError">
         <div class="settings-text-grid">
-          <UFormField v-for="field in fields" :key="field.name" :label="field.label" :name="field.name" size="lg" :class="{ 'full-width': field.name === 'hospitalNamePashto' }" :ui="{ label: 'text-base' }">
-            <UInput v-model="form[field.name]" :name="field.name" :dir="field.direction" :maxlength="field.max" :placeholder="field.label" :spellcheck="false" autocomplete="off" size="xl" class="w-full" :ui="{ base: 'settings-input' }" />
+          <UFormField v-for="field in fields" :key="field.name" :label="field.label" :name="field.name" size="lg" :class="{ 'full-width': field.name.startsWith('hospital') }" :ui="{ label: 'text-base' }">
+            <UInput v-model="form[field.name]" :name="field.name" :dir="field.direction" :maxlength="field.max" :placeholder="field.name === 'hospitalPhoneNumbers' ? 'Separate multiple phone numbers with commas' : field.label" :spellcheck="false" autocomplete="off" size="xl" class="w-full" :ui="{ base: 'settings-input' }" />
           </UFormField>
         </div>
 

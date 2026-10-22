@@ -14,6 +14,10 @@ namespace RoghtiaSystem_JahidKawa.Server.ViewModels
         public string? DoctorProfessionEnglish { get; set; }
         [StringLength(200)]
         public string? HospitalNamePashto { get; set; }
+        [StringLength(300)]
+        public string? HospitalAddress { get; set; }
+        [StringLength(300)]
+        public string? HospitalPhoneNumbers { get; set; }
         public IFormFile? DoctorPhoto { get; set; }
         public IFormFile? DoctorLogo { get; set; }
         public IFormFile? HospitalLogo { get; set; }
@@ -31,6 +35,8 @@ namespace RoghtiaSystem_JahidKawa.Server.ViewModels
         string? DoctorLogo,
         string? HospitalLogo,
         string HospitalNamePashto,
+        string HospitalAddress,
+        string HospitalPhoneNumbers,
         int LoggedInUserId,
         bool Exists);
 }

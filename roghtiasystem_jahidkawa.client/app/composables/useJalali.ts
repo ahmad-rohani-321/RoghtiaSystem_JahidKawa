@@ -20,15 +20,17 @@ export const localNumber = (value: number | string) => String(value).replace(/[Û
 export const jalaliToday = () => toCalendar(today('Asia/Kabul'), new PersianCalendar())
 export const formatJalaliMonth = (date: JalaliDate) => JALALI_MONTH_NAMES[toCalendar(date, new PersianCalendar()).month - 1]!
 export const formatJalali = (date: JalaliDate, weekday = false) => {
-  const parts = new Intl.DateTimeFormat(JALALI_LOCALE, { year: 'numeric', month: 'long', day: 'numeric', ...(weekday ? { weekday: 'long' as const } : {}), timeZone: 'Asia/Kabul' }).formatToParts(date.toDate('Asia/Kabul'))
-  const part = (type: Intl.DateTimeFormatPartTypes) => parts.find(value => value.type === type)?.value ?? ''
-  // Keep the shared display compact and omit Intl's Latin "AP" era marker.
-  return `${weekday ? `${part('weekday')}, ` : ''}${part('day')} ${formatJalaliMonth(date)} ${part('year')}`
+  const jalaliDate = toCalendar(date, new PersianCalendar())
+  const weekdayName = weekday
+    ? new Intl.DateTimeFormat(JALALI_LOCALE, { weekday: 'long', timeZone: 'Asia/Kabul' }).format(date.toDate('Asia/Kabul'))
+    : ''
+  return `${weekday ? `${weekdayName}, ` : ''}${localNumber(jalaliDate.year)}/${jalaliDate.month}/${jalaliDate.day}`
 }
 export const formatJalaliDateTime = (utc: string) => {
   const date = new Date(utc)
   if (Number.isNaN(date.getTime())) return ''
   const parts = new Intl.DateTimeFormat(JALALI_LOCALE, { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Kabul' }).formatToParts(date)
   const part = (type: Intl.DateTimeFormatPartTypes) => parts.find(value => value.type === type)?.value ?? ''
-  return `${localNumber(part('day'))} ${JALALI_MONTH_NAMES[Number(part('month')) - 1]} ${localNumber(part('year'))}, ${localNumber(part('hour'))}:${localNumber(part('minute'))}`
+  const jalaliDate = `${localNumber(part('year'))}/${Number(part('month'))}/${Number(part('day'))}`
+  return `${jalaliDate}, ${localNumber(part('hour'))}:${localNumber(part('minute'))}`
 }

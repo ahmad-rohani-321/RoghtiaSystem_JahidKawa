@@ -7,6 +7,8 @@ export interface DoctorInformation {
   doctorLogo: string | null
   hospitalLogo: string | null
   hospitalNamePashto: string
+  hospitalAddress: string
+  hospitalPhoneNumbers: string
   loggedInUserId: number
   exists: boolean
 }

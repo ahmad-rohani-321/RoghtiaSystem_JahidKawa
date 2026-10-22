@@ -44,6 +44,8 @@ const errorMessage = ref('')
 const serviceMessage = ref('')
 const insufficientStockOpen = ref(false)
 const insufficientStockPrint = ref(false)
+const printAsA5 = ref(false)
+const printGrayscale = ref(false)
 let rowKey = 1
 let patientRequest = 0
 let patientLookupRequest = 0
@@ -316,7 +318,9 @@ async function save(printAfter = false, allowInsufficientStock = false) {
     }
     const saved = editing.value ? await treatmentsApi.update(props.treatmentId!, input) : await treatmentsApi.create(input)
     toast.add({ title: editing.value ? 'Treatment updated' : 'Treatment recorded', description: 'Treatment and prescription saved.', color: 'success', icon: 'i-lucide-circle-check' })
-    await navigateTo(printAfter ? `/treatments/${saved.id}/print?auto=1` : '/treatments')
+    await navigateTo(printAfter
+      ? { path: `/treatments/${saved.id}/print`, query: { auto: '1', a5: printAsA5.value ? '1' : '0', grayscale: printGrayscale.value ? '1' : '0' } }
+      : '/treatments')
   } catch (error: unknown) {
     const failure = error as { statusCode?: number, status?: number, data?: { code?: string, data?: { code?: string } } }
     if ((failure.statusCode || failure.status) === 401) return await navigateTo('/login')
@@ -377,6 +381,7 @@ await loadOptions()
         <div class="treatment-fields"><UFormField label="Blood pressure (BP)" name="bloodPressure" help="e.g. 120/80"><UInput v-model="bloodPressure" name="bloodPressure" dir="ltr" inputmode="numeric" :maxlength="16" placeholder="120/80" size="xl" class="w-full" /></UFormField><div class="notes-field"><UFormField label="Clinical notes" name="clinicalNotes"><USelectMenu v-model="selectedNoteIds" :items="notes" value-key="id" label-key="text" multiple searchable searchable-placeholder="Search notes" placeholder="Select notes" size="xl" class="w-full" /></UFormField><UButton type="button" color="neutral" variant="outline" icon="i-lucide-plus" @click="noteOpen = true">New note</UButton></div><div class="notes-field instructions-field"><UFormField label="Additional instructions" name="additionalInstructions"><USelectMenu v-model="selectedInstructionIds" :items="instructionOptions" value-key="id" label-key="text" multiple searchable searchable-placeholder="Search instructions" placeholder="Select instructions" size="xl" class="w-full" /></UFormField><UButton type="button" color="neutral" variant="outline" icon="i-lucide-plus" @click="instructionOpen = true">Add instruction</UButton></div><p class="instructions-help">Select one or more saved instructions to print with the prescription.</p></div>
       </section>
       <div v-if="serviceMessage" class="page-error" role="alert"><UIcon name="i-lucide-circle-alert" />{{ serviceMessage }}</div>
+      <PrescriptionPrintOptions v-model:a5="printAsA5" v-model:grayscale="printGrayscale" />
       <div class="form-actions"><UButton type="submit" icon="i-lucide-save" size="lg" :loading="pending" :disabled="pending">{{ editing ? 'Save changes' : 'Save treatment' }}</UButton><UButton type="button" color="neutral" variant="outline" icon="i-lucide-printer" size="lg" :disabled="pending" @click="save(true)">Save and print</UButton><UButton to="/treatments" color="neutral" variant="ghost" size="lg">Back</UButton></div>
     </form>
     <UModal v-model:open="patientModalOpen" title="Find patient" description="Search by name, phone or gender, then select a patient." :content="{ dir: 'ltr' }" :ui="{ content: 'w-[min(940px,calc(100vw-1.5rem))] max-w-none min-w-0', body: 'min-w-0' }">

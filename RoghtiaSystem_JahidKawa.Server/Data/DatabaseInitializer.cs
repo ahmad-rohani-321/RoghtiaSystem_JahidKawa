@@ -11,15 +11,19 @@ namespace RoghtiaSystem_JahidKawa.Server.Data
             // Fresh databases use the checked-in migrations, so dotnet ef database update
             // and normal startup create the same schema and migration history.
             await context.Database.OpenConnectionAsync();
-            bool hasUsers;
+            bool hasUsers, hasMigrationHistory;
             try
             {
                 await using var command = context.Database.GetDbConnection().CreateCommand();
                 command.CommandText = "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'Users')";
                 hasUsers = Convert.ToInt32(await command.ExecuteScalarAsync()) != 0;
+                command.CommandText = "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = '__EFMigrationsHistory')";
+                hasMigrationHistory = Convert.ToInt32(await command.ExecuteScalarAsync()) != 0;
             }
             finally { await context.Database.CloseConnectionAsync(); }
-            if (!hasUsers) await context.Database.MigrateAsync();
+            // Fresh and EF-managed databases use migrations. Older user databases without
+            // migration history retain the additive compatibility upgrade below.
+            if (!hasUsers || hasMigrationHistory) await context.Database.MigrateAsync();
 
             await context.Database.OpenConnectionAsync();
             try
@@ -75,9 +79,21 @@ namespace RoghtiaSystem_JahidKawa.Server.Data
                         DoctorLogo BLOB NULL,
                         HospitalLogo BLOB NULL,
                         HospitalNamePashto TEXT NOT NULL,
+                        HospitalAddress TEXT NOT NULL DEFAULT '',
+                        HospitalPhoneNumbers TEXT NOT NULL DEFAULT '',
                         FOREIGN KEY (LoggedInUserId) REFERENCES Users (Id) ON DELETE CASCADE
                     )
                     """);
+                var doctorColumns = new HashSet<string>();
+                await using (var command = connection.CreateCommand())
+                {
+                    command.Transaction = transaction;
+                    command.CommandText = "PRAGMA table_info(DoctorInformation)";
+                    await using var reader = await command.ExecuteReaderAsync();
+                    while (await reader.ReadAsync()) doctorColumns.Add(reader.GetString(1));
+                }
+                if (!doctorColumns.Contains("HospitalAddress")) await ExecuteAsync(connection, transaction, "ALTER TABLE DoctorInformation ADD COLUMN HospitalAddress TEXT NOT NULL DEFAULT ''");
+                if (!doctorColumns.Contains("HospitalPhoneNumbers")) await ExecuteAsync(connection, transaction, "ALTER TABLE DoctorInformation ADD COLUMN HospitalPhoneNumbers TEXT NOT NULL DEFAULT ''");
                 await ExecuteAsync(connection, transaction, """
                     CREATE TABLE IF NOT EXISTS Medications (
                         Id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
