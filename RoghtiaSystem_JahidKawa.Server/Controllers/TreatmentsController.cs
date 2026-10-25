@@ -6,6 +6,7 @@ using RoghtiaSystem_JahidKawa.Server.Data.Models;
 using RoghtiaSystem_JahidKawa.Server.ViewModels;
 using System.Globalization;
 using System.Security.Claims;
+using System.Text.Json;
 
 namespace RoghtiaSystem_JahidKawa.Server.Controllers
 {
@@ -22,7 +23,9 @@ namespace RoghtiaSystem_JahidKawa.Server.Controllers
         {
             "Once daily", "Twice daily", "Three times daily", "Four times daily",
             "Every 4 hours", "Every 6 hours", "Every 8 hours", "Every 12 hours", "Every 24 hours",
-            "Once weekly", "As needed"
+            "As needed", "Immediately", "Single dose", "At bedtime", "Every morning", "Every evening",
+            "Before meals", "After meals", "Before breakfast", "After breakfast", "Before lunch", "After lunch",
+            "Before dinner", "After dinner", "With meals", "Every other day", "Weekly", "Twice weekly", "Monthly"
         };
 
         [HttpGet]
@@ -115,6 +118,14 @@ namespace RoghtiaSystem_JahidKawa.Server.Controllers
             return treatment == null ? NotFound(new AuthError("NOT_FOUND", "Treatment not found.")) : Ok(ToResponse(treatment));
         }
 
+        [HttpGet("templates")]
+        public async Task<IActionResult> GetTemplates(CancellationToken cancellationToken)
+        {
+            var templates = await context.TreatmentTemplates.AsNoTracking().Where(item => item.UserId == LoggedInUserId)
+                .OrderBy(item => item.Name).ToListAsync(cancellationToken);
+            return Ok(templates.Select(ToTemplateResponse).ToList());
+        }
+
         [HttpPost]
         [Consumes("application/json")]
         [RequestSizeLimit(32 * 1024)]
@@ -133,6 +144,8 @@ namespace RoghtiaSystem_JahidKawa.Server.Controllers
             ApplyChanges(treatment, request, medications, deductedMedicationIds);
             context.Treatments.Add(treatment);
             await context.SaveChangesAsync(cancellationToken);
+            var templateError = await SaveTemplateIfRequested(request, cancellationToken);
+            if (templateError != null) return templateError;
             await transaction.CommitAsync(cancellationToken);
             var saved = await LoadOwned(treatment.Id, cancellationToken);
             return CreatedAtAction(nameof(GetById), new { id = saved.Id }, ToResponse(saved));
@@ -170,8 +183,63 @@ namespace RoghtiaSystem_JahidKawa.Server.Controllers
             treatment.AdditionalInstructions = request.AdditionalInstructions?.Trim() ?? string.Empty;
             ApplyChanges(treatment, request, medications, deductedMedicationIds);
             await context.SaveChangesAsync(cancellationToken);
+            var templateError = await SaveTemplateIfRequested(request, cancellationToken);
+            if (templateError != null) return templateError;
             await transaction.CommitAsync(cancellationToken);
             return Ok(ToResponse(await LoadOwned(id, cancellationToken)));
+        }
+
+        private async Task<IActionResult?> SaveTemplateIfRequested(TreatmentRequest request, CancellationToken cancellationToken)
+        {
+            if (!request.SaveAsTemplate) return null;
+
+            var ownerId = LoggedInUserId;
+            TreatmentTemplate? template = null;
+            if (request.TemplateId.HasValue)
+            {
+                template = await context.TreatmentTemplates.SingleOrDefaultAsync(item =>
+                    item.Id == request.TemplateId.Value && item.UserId == ownerId, cancellationToken);
+                if (template == null) return NotFound(new AuthError("NOT_FOUND", "Treatment template not found."));
+            }
+
+            var name = request.TemplateName?.Trim() ?? string.Empty;
+            if (template == null && (name.Length is < 1 or > 100))
+                return BadRequest(new AuthError("VALIDATION_ERROR", "Enter a name for the new treatment template."));
+            if (template != null) name = template.Name;
+
+            var exceptId = template?.Id ?? 0;
+            var normalizedName = name.ToLowerInvariant();
+            var duplicate = await context.TreatmentTemplates.AsNoTracking().AnyAsync(item => item.UserId == ownerId &&
+                item.Name.ToLower() == normalizedName && item.Id != exceptId, cancellationToken);
+            if (duplicate) return Conflict(new AuthError("TEMPLATE_NAME_EXISTS", "A treatment template with this name already exists."));
+
+            var data = new TreatmentTemplateData
+            {
+                BloodPressure = request.BloodPressure?.Trim() ?? "120/80",
+                AdditionalInstructions = request.AdditionalInstructions?.Trim() ?? string.Empty,
+                ClinicalNoteIds = request.ClinicalNoteIds!,
+                AdditionalInstructionIds = request.AdditionalInstructionIds!,
+                PrescriptionItems = request.PrescriptionItems!.Select(item => new TreatmentTemplateItem(
+                    item.MedicationId!.Value, item.Dose!.Value, item.Frequency!, item.Duration!.Trim())).ToList()
+            };
+            var dataJson = JsonSerializer.Serialize(data);
+            if (template == null)
+            {
+                context.TreatmentTemplates.Add(new TreatmentTemplate { UserId = ownerId, Name = name, DataJson = dataJson });
+            }
+            else
+            {
+                template.DataJson = dataJson;
+            }
+            await context.SaveChangesAsync(cancellationToken);
+            return null;
+        }
+
+        private static TreatmentTemplateResponse ToTemplateResponse(TreatmentTemplate template)
+        {
+            var data = JsonSerializer.Deserialize<TreatmentTemplateData>(template.DataJson) ?? new TreatmentTemplateData();
+            return new TreatmentTemplateResponse(template.Id, template.Name, data.BloodPressure, data.AdditionalInstructions,
+                data.ClinicalNoteIds, data.AdditionalInstructionIds, data.PrescriptionItems);
         }
 
         private async Task<(IActionResult? Error, Dictionary<int, Medication> Medications)> ValidateReferences(

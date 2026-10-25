@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { Patient, PatientInput, PatientPage } from '#shared/types/patient'
 import type { Medication } from '#shared/types/medication'
-import { prescriptionFrequencies, type AdditionalInstruction, type ClinicalNote, type Treatment, type TreatmentInput } from '#shared/types/treatment'
+import { prescriptionFrequencies, prescriptionFrequencyCodes, type AdditionalInstruction, type ClinicalNote, type Treatment, type TreatmentInput, type TreatmentTemplate } from '#shared/types/treatment'
 
 const props = defineProps<{ treatmentId?: number }>()
 const editing = computed(() => props.treatmentId !== undefined)
@@ -28,6 +28,12 @@ const notes = ref<ClinicalNote[]>([])
 const selectedNoteIds = ref<number[]>([])
 const instructionOptions = ref<AdditionalInstruction[]>([])
 const selectedInstructionIds = ref<number[]>([])
+const treatmentTemplates = ref<TreatmentTemplate[]>([])
+const selectedTemplateId = ref<number | null>(null)
+const templatesReady = ref(false)
+const templateLoadMessage = ref('')
+const saveAsTemplate = ref(false)
+const newTemplateName = ref('')
 const bloodPressure = ref('120/80')
 const legacyAdditionalInstructions = ref('')
 const rows = ref<{ key: number, medicationId: number | null, dose: number | string, frequency: string, duration: string }[]>([{ key: 1, medicationId: null, dose: 1, frequency: 'Once daily', duration: '' }])
@@ -52,10 +58,16 @@ let patientLookupRequest = 0
 let patientLookupTask: Promise<boolean> | null = null
 const medicationOptions = computed(() => medications.value.map(medication => ({ id: medication.id, label: `${medication.name} · ${localNumber(medication.quantity)}` })))
 const medicationMap = computed(() => new Map(medications.value.map(medication => [medication.id, medication])))
-const frequencyOptions = prescriptionFrequencies.map(value => ({ label: value, value }))
+const frequencyOptions = prescriptionFrequencies.map(value => ({ label: prescriptionFrequencyCodes[value] ? `${prescriptionFrequencyCodes[value]} · ${value}` : value, value }))
+const templateOptions = computed(() => [{ label: 'No template selected', value: 0 }, ...treatmentTemplates.value.map(template => ({ label: template.name, value: template.id }))])
 const genders: Record<string, string> = { Male: 'Male', Female: 'Female', Other: 'Other' }
 const genderOptions = [{ label: 'All genders', value: 'all' }, { label: 'Male', value: 'Male' }, { label: 'Female', value: 'Female' }, { label: 'Other', value: 'Other' }]
 const patientTotalPages = computed(() => Math.max(1, Math.ceil(patientResults.value.total / 10)))
+
+function normalizeFrequency(value: string) {
+  if (value === 'Once weekly') return 'Weekly'
+  return (prescriptionFrequencies as readonly string[]).includes(value) ? value : 'Once daily'
+}
 
 function populatePatient(patient: Patient, cancelLookup = true) {
   if (cancelLookup) {
@@ -209,13 +221,29 @@ async function loadExisting() {
   legacyAdditionalInstructions.value = treatment.additionalInstructions
   selectedNoteIds.value = treatment.clinicalNotes.map(note => note.id)
   selectedInstructionIds.value = treatment.additionalInstructionItems.map(item => item.id)
-  rows.value = treatment.prescriptionItems.map(item => ({ key: ++rowKey, medicationId: item.medicationId, dose: item.dose, frequency: item.frequency, duration: item.duration }))
+  rows.value = treatment.prescriptionItems.map(item => ({ key: ++rowKey, medicationId: item.medicationId, dose: item.dose, frequency: normalizeFrequency(item.frequency), duration: item.duration }))
+}
+
+function selectTreatmentTemplate(value: number | null | undefined) {
+  selectedTemplateId.value = value && value > 0 ? value : null
+  const template = treatmentTemplates.value.find(item => item.id === selectedTemplateId.value)
+  if (!template) return
+  bloodPressure.value = template.bloodPressure || '120/80'
+  legacyAdditionalInstructions.value = template.additionalInstructions || ''
+  selectedNoteIds.value = [...template.clinicalNoteIds]
+  selectedInstructionIds.value = [...template.additionalInstructionIds]
+  rows.value = template.prescriptionItems.length
+    ? template.prescriptionItems.map(item => ({ key: ++rowKey, medicationId: item.medicationId, dose: item.dose, frequency: normalizeFrequency(item.frequency), duration: item.duration }))
+    : [{ key: ++rowKey, medicationId: null, dose: 1, frequency: 'Once daily', duration: '' }]
+  serviceMessage.value = ''
 }
 
 async function loadOptions() {
   loading.value = true
   ready.value = false
   errorMessage.value = ''
+  templateLoadMessage.value = ''
+  templatesReady.value = false
   try {
     const [first, clinicalNotes, savedInstructions] = await Promise.all([medicationsApi.list({ page: 1, pageSize: 100 }), treatmentsApi.clinicalNotes(), treatmentsApi.additionalInstructions()])
     const all = [...first.items]
@@ -227,6 +255,20 @@ async function loadOptions() {
     medications.value = all
     notes.value = clinicalNotes
     instructionOptions.value = savedInstructions
+    try {
+      treatmentTemplates.value = await treatmentsApi.templates()
+      templatesReady.value = true
+    } catch (templateError: unknown) {
+      const templateFailure = templateError as { statusCode?: number, status?: number }
+      const status = templateFailure.statusCode || templateFailure.status
+      if (status === 401) return await navigateTo('/login')
+      treatmentTemplates.value = []
+      templateLoadMessage.value = status === 404
+        ? 'The treatment-template API route is missing. Restart the E-Roghtia server after rebuilding the client.'
+        : status === 503
+          ? 'The server could not load treatment templates. Check the server and database logs, then retry.'
+          : `Unable to load treatment templates${status ? ` (HTTP ${status})` : ''}. Retry or check the server logs.`
+    }
     await loadExisting()
     ready.value = true
   } catch (error: unknown) {
@@ -295,6 +337,12 @@ async function save(printAfter = false, allowInsufficientStock = false) {
   }
   const newPatient = selectedPatient.value ? null : validatePatientDraft()
   if (!selectedPatient.value && !newPatient) return
+  if (saveAsTemplate.value && selectedTemplateId.value === null && !newTemplateName.value.trim()) {
+    serviceMessage.value = 'Enter a name for the new treatment template.'; return
+  }
+  if (saveAsTemplate.value && selectedTemplateId.value === null && newTemplateName.value.trim().length > 100) {
+    serviceMessage.value = 'Treatment template name cannot exceed 100 characters.'; return
+  }
   if (bloodPressure.value.trim() && !/^[1-9][0-9]{1,2}\/[1-9][0-9]{1,2}$/.test(bloodPressure.value.trim())) {
     serviceMessage.value = 'Enter blood pressure in the format 120/80.'; return
   }
@@ -314,10 +362,13 @@ async function save(printAfter = false, allowInsufficientStock = false) {
     const input: TreatmentInput = {
       patientId: selectedPatient.value!.id, bloodPressure: bloodPressure.value.trim(), additionalInstructions: legacyAdditionalInstructions.value, clinicalNoteIds: selectedNoteIds.value, additionalInstructionIds: selectedInstructionIds.value,
       prescriptionItems: rows.value.map(row => ({ medicationId: row.medicationId!, dose: Number(row.dose), frequency: row.frequency, duration: row.duration.trim() })),
+      saveAsTemplate: saveAsTemplate.value,
+      templateId: selectedTemplateId.value,
+      templateName: selectedTemplateId.value === null ? newTemplateName.value.trim() : undefined,
       allowInsufficientStock
     }
     const saved = editing.value ? await treatmentsApi.update(props.treatmentId!, input) : await treatmentsApi.create(input)
-    toast.add({ title: editing.value ? 'Treatment updated' : 'Treatment recorded', description: 'Treatment and prescription saved.', color: 'success', icon: 'i-lucide-circle-check' })
+    toast.add({ title: editing.value ? 'Treatment updated' : 'Treatment recorded', description: saveAsTemplate.value ? 'Treatment and template saved.' : 'Treatment and prescription saved.', color: 'success', icon: 'i-lucide-circle-check' })
     await navigateTo(printAfter
       ? { path: `/treatments/${saved.id}/print`, query: { auto: '1', a5: printAsA5.value ? '1' : '0', grayscale: printGrayscale.value ? '1' : '0' } }
       : '/treatments')
@@ -330,6 +381,11 @@ async function save(printAfter = false, allowInsufficientStock = false) {
       insufficientStockOpen.value = true
       return
     }
+    if ((failure.statusCode || failure.status) === 409 && code === 'TEMPLATE_NAME_EXISTS') {
+      serviceMessage.value = 'A treatment template with this name already exists. Choose another name.'
+      toast.add({ title: 'Template name already exists', description: serviceMessage.value, color: 'error' })
+      return
+    }
     serviceMessage.value = (failure.statusCode || failure.status) === 404 ? 'Patient or treatment not found. Refresh the list.' : code === 'VALIDATION_ERROR'
       ? 'Invalid information, or the selected patient, medication or note is no longer available.'
       : 'Unable to save treatment. Please try again.'
@@ -337,7 +393,7 @@ async function save(printAfter = false, allowInsufficientStock = false) {
   } finally { pending.value = false }
 }
 
-watch(() => auth.user.value?.id, () => { clearPatient(); ++patientRequest; patientModalOpen.value = false; insufficientStockOpen.value = false; patientResults.value = { items: [], total: 0, page: 1, pageSize: 10 }; medications.value = []; notes.value = []; selectedNoteIds.value = []; instructionOptions.value = []; selectedInstructionIds.value = []; bloodPressure.value = '120/80'; legacyAdditionalInstructions.value = ''; rows.value = [{ key: ++rowKey, medicationId: null, dose: 1, frequency: 'Once daily', duration: '' }]; void loadOptions() })
+watch(() => auth.user.value?.id, () => { clearPatient(); ++patientRequest; patientModalOpen.value = false; insufficientStockOpen.value = false; patientResults.value = { items: [], total: 0, page: 1, pageSize: 10 }; medications.value = []; notes.value = []; selectedNoteIds.value = []; instructionOptions.value = []; selectedInstructionIds.value = []; treatmentTemplates.value = []; selectedTemplateId.value = null; saveAsTemplate.value = false; newTemplateName.value = ''; bloodPressure.value = '120/80'; legacyAdditionalInstructions.value = ''; rows.value = [{ key: ++rowKey, medicationId: null, dose: 1, frequency: 'Once daily', duration: '' }]; void loadOptions() })
 onBeforeUnmount(() => { ++patientRequest; ++patientLookupRequest })
 await loadOptions()
 </script>
@@ -372,6 +428,12 @@ await loadOptions()
         </div>
         <p v-if="patientCodeMessage" class="patient-code-message" role="status">{{ patientCodeMessage }}</p>
       </section>
+      <section class="panel form-section template-section" aria-labelledby="treatment-template-title">
+        <header class="section-heading"><span class="section-icon"><UIcon name="i-lucide-copy-check" /></span><div><h2 id="treatment-template-title">Treatment template</h2><p>Load saved treatment details to fill the medication and treatment fields.</p></div></header>
+        <UFormField label="Choose a treatment template" name="treatmentTemplate"><USelect :model-value="selectedTemplateId" :items="templateOptions" placeholder="Select a treatment template" size="xl" class="w-full" :disabled="!templatesReady" @update:model-value="selectTreatmentTemplate" /></UFormField>
+        <div v-if="templateLoadMessage" class="template-unavailable" role="status"><span>{{ templateLoadMessage }}</span><UButton type="button" size="sm" color="neutral" variant="outline" :loading="loading" @click="loadOptions">Retry</UButton></div>
+        <p v-else-if="templatesReady && !treatmentTemplates.length" class="template-help">No treatment templates have been saved yet.</p>
+      </section>
       <section class="panel form-section" aria-labelledby="prescription-title"><header class="section-heading"><span class="section-icon"><UIcon name="i-lucide-pill" /></span><div><h2 id="prescription-title">Medications and prescription</h2><p>Select a medication; its type is filled automatically.</p></div></header>
         <div v-if="!medications.length" class="picker-state">No medications registered. <NuxtLink to="/medications">Open medications</NuxtLink>.</div>
         <div class="prescription-table-wrap"><table class="prescription-table"><thead><tr><th>No.</th><th>Medications</th><th>Type</th><th>Dose</th><th>Frequency</th><th>Duration</th><th><span class="sr-only">Remove</span></th></tr></thead><tbody><tr v-for="(row, index) in rows" :key="row.key"><td data-label="No." class="row-number">{{ localNumber(index + 1) }}</td><td data-label="Medications"><USelectMenu v-model="row.medicationId" :items="medicationOptions" value-key="id" label-key="label" searchable searchable-placeholder="Search medications" placeholder="Select medication" size="lg" class="w-full" :aria-label="`Row ${index + 1} medication`" /></td><td data-label="Type"><span class="type-value">{{ row.medicationId ? medicationMap.get(row.medicationId)?.type || '—' : '—' }}</span></td><td data-label="Dose"><UInput v-model="row.dose" type="number" inputmode="numeric" :min="1" :max="2147483647" :step="1" size="lg" class="w-full" :aria-label="`Row ${index + 1} dose`" /></td><td data-label="Frequency"><USelect v-model="row.frequency" :items="frequencyOptions" size="lg" class="w-full" :aria-label="`Row ${index + 1} frequency`" /></td><td data-label="Duration"><UInput v-model="row.duration" :maxlength="100" placeholder="e.g. 7 days" size="lg" class="w-full" :aria-label="`Row ${index + 1} duration`" /></td><td data-label="Remove"><UButton type="button" color="error" variant="ghost" icon="i-lucide-trash-2" :aria-label="`Row ${index + 1} remove row`" @click="removeRow(row.key)" /></td></tr></tbody></table></div>
@@ -381,6 +443,13 @@ await loadOptions()
         <div class="treatment-fields"><UFormField label="Blood pressure (BP)" name="bloodPressure" help="e.g. 120/80"><UInput v-model="bloodPressure" name="bloodPressure" dir="ltr" inputmode="numeric" :maxlength="16" placeholder="120/80" size="xl" class="w-full" /></UFormField><div class="notes-field"><UFormField label="Clinical notes" name="clinicalNotes"><USelectMenu v-model="selectedNoteIds" :items="notes" value-key="id" label-key="text" multiple searchable searchable-placeholder="Search notes" placeholder="Select notes" size="xl" class="w-full" /></UFormField><UButton type="button" color="neutral" variant="outline" icon="i-lucide-plus" @click="noteOpen = true">New note</UButton></div><div class="notes-field instructions-field"><UFormField label="Additional instructions" name="additionalInstructions"><USelectMenu v-model="selectedInstructionIds" :items="instructionOptions" value-key="id" label-key="text" multiple searchable searchable-placeholder="Search instructions" placeholder="Select instructions" size="xl" class="w-full" /></UFormField><UButton type="button" color="neutral" variant="outline" icon="i-lucide-plus" @click="instructionOpen = true">Add instruction</UButton></div><p class="instructions-help">Select one or more saved instructions to print with the prescription.</p></div>
       </section>
       <div v-if="serviceMessage" class="page-error" role="alert"><UIcon name="i-lucide-circle-alert" />{{ serviceMessage }}</div>
+      <section class="panel template-save-panel">
+        <UCheckbox v-model="saveAsTemplate" label="Save this treatment as a reusable template" name="saveAsTemplate" :disabled="!templatesReady" />
+        <UFormField v-if="saveAsTemplate && selectedTemplateId === null" label="New treatment template name" name="templateName" required help="Patient information is never included in a treatment template.">
+          <UInput v-model="newTemplateName" name="templateName" :maxlength="100" placeholder="Enter a name for this template" size="xl" class="w-full" />
+        </UFormField>
+        <p v-else-if="saveAsTemplate" class="template-help">Saving will update “{{ treatmentTemplates.find(item => item.id === selectedTemplateId)?.name }}” with the current medication and treatment details.</p>
+      </section>
       <PrescriptionPrintOptions v-model:a5="printAsA5" v-model:grayscale="printGrayscale" />
       <div class="form-actions"><UButton type="submit" icon="i-lucide-save" size="lg" :loading="pending" :disabled="pending">{{ editing ? 'Save changes' : 'Save treatment' }}</UButton><UButton type="button" color="neutral" variant="outline" icon="i-lucide-printer" size="lg" :disabled="pending" @click="save(true)">Save and print</UButton><UButton to="/treatments" color="neutral" variant="ghost" size="lg">Back</UButton></div>
     </form>
@@ -409,6 +478,11 @@ await loadOptions()
 .page-heading p { font-size: 1rem; line-height: 1.8; }
 .treatment-form { display: grid; gap: 22px; }
 .form-section { padding: 24px; border-radius: 16px; min-width: 0; }
+.template-section { display: grid; gap: 16px; }
+.template-section .section-heading { margin-bottom: 0; }
+.template-help { margin: -8px 0 0; color: var(--muted); font-size: .9rem; line-height: 1.7; }
+.template-unavailable { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin: 0; color: #9a5b00; font-size: .9rem; line-height: 1.7; }
+.template-save-panel { display: grid; gap: 16px; padding: 18px 22px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface, #fff); }
 .section-heading { display: flex; align-items: center; gap: 14px; margin-bottom: 22px; }
 .section-icon { display: grid; place-items: center; width: 46px; height: 46px; flex-shrink: 0; color: var(--teal); background: var(--soft); border-radius: 13px; }
 .section-icon .iconify { width: 24px; height: 24px; }

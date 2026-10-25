@@ -1,5 +1,14 @@
 namespace RoghtiaSystem_JahidKawa.Server.Data.Models
 {
+    public class TreatmentTemplate
+    {
+        public int Id { get; set; }
+        public int UserId { get; set; }
+        public Users User { get; set; } = null!;
+        public string Name { get; set; } = string.Empty;
+        public string DataJson { get; set; } = string.Empty;
+    }
+
     public class Treatment
     {
         public int Id { get; set; }

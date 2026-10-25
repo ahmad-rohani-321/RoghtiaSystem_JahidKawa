@@ -16,6 +16,11 @@ namespace RoghtiaSystem_JahidKawa.Server.ViewModels
         public List<int>? AdditionalInstructionIds { get; set; }
         [Required, MaxLength(30)]
         public List<PrescriptionItemRequest>? PrescriptionItems { get; set; }
+        public bool SaveAsTemplate { get; set; }
+        [Range(1, int.MaxValue)]
+        public int? TemplateId { get; set; }
+        [StringLength(100)]
+        public string? TemplateName { get; set; }
         public bool AllowInsufficientStock { get; set; }
     }
 
@@ -64,4 +69,15 @@ namespace RoghtiaSystem_JahidKawa.Server.ViewModels
     public record TreatmentResponse(int Id, DateTime RecordedAtUtc, TreatmentPatientResponse Patient, string BloodPressure, string AdditionalInstructions,
         IReadOnlyList<ClinicalNoteResponse> ClinicalNotes, IReadOnlyList<AdditionalInstructionResponse> AdditionalInstructionItems, IReadOnlyList<PrescriptionItemResponse> PrescriptionItems);
     public record TreatmentListResponse(IReadOnlyList<TreatmentSummaryResponse> Items, int Total, int Page, int PageSize);
+    public class TreatmentTemplateData
+    {
+        public string BloodPressure { get; set; } = "120/80";
+        public string AdditionalInstructions { get; set; } = string.Empty;
+        public List<int> ClinicalNoteIds { get; set; } = [];
+        public List<int> AdditionalInstructionIds { get; set; } = [];
+        public List<TreatmentTemplateItem> PrescriptionItems { get; set; } = [];
+    }
+    public record TreatmentTemplateItem(int MedicationId, int Dose, string Frequency, string Duration);
+    public record TreatmentTemplateResponse(int Id, string Name, string BloodPressure, string AdditionalInstructions,
+        IReadOnlyList<int> ClinicalNoteIds, IReadOnlyList<int> AdditionalInstructionIds, IReadOnlyList<TreatmentTemplateItem> PrescriptionItems);
 }

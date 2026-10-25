@@ -14,6 +14,7 @@ namespace RoghtiaSystem_JahidKawa.Server.Data
         public DbSet<Medication> Medications { get; set; }
         public DbSet<Patient> Patients { get; set; }
         public DbSet<Treatment> Treatments { get; set; }
+        public DbSet<TreatmentTemplate> TreatmentTemplates { get; set; }
         public DbSet<PrescriptionItem> PrescriptionItems { get; set; }
         public DbSet<ClinicalNote> ClinicalNotes { get; set; }
         public DbSet<TreatmentClinicalNote> TreatmentClinicalNotes { get; set; }
@@ -74,6 +75,13 @@ namespace RoghtiaSystem_JahidKawa.Server.Data
                 treatment.HasOne(t => t.Patient).WithMany().HasForeignKey(t => t.PatientId).OnDelete(DeleteBehavior.Restrict);
                 treatment.HasIndex(t => new { t.UserId, t.RecordedAtUtc });
                 treatment.HasIndex(t => new { t.UserId, t.PatientId });
+            });
+            modelBuilder.Entity<TreatmentTemplate>(template =>
+            {
+                template.Property(t => t.Name).IsRequired().HasMaxLength(100).UseCollation("NOCASE");
+                template.Property(t => t.DataJson).IsRequired().HasMaxLength(20000);
+                template.HasOne(t => t.User).WithMany().HasForeignKey(t => t.UserId).OnDelete(DeleteBehavior.Restrict);
+                template.HasIndex(t => new { t.UserId, t.Name }).IsUnique();
             });
             modelBuilder.Entity<PrescriptionItem>(item =>
             {

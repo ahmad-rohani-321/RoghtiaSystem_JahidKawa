@@ -62,11 +62,17 @@ export async function readTreatmentInput(event: H3Event): Promise<TreatmentInput
         !Number.isInteger(item.dose) || item.dose < 1 || item.dose > 2147483647 ||
         (item.frequency !== undefined && (typeof item.frequency !== 'string' || !allowedFrequencies.has(item.frequency))) ||
         typeof item.duration !== 'string' || !item.duration.trim() || item.duration.trim().length > 100) ||
-      (value.allowInsufficientStock !== undefined && typeof value.allowInsufficientStock !== 'boolean')) throw invalid()
+      (value.allowInsufficientStock !== undefined && typeof value.allowInsufficientStock !== 'boolean') ||
+      (value.saveAsTemplate !== undefined && typeof value.saveAsTemplate !== 'boolean') ||
+      (value.templateId !== undefined && value.templateId !== null && (!Number.isInteger(value.templateId) || value.templateId < 1 || value.templateId > 2147483647)) ||
+      (value.templateName !== undefined && (typeof value.templateName !== 'string' || value.templateName.trim().length > 100))) throw invalid()
   return {
     patientId: value.patientId!, bloodPressure: value.bloodPressure.trim(), additionalInstructions: value.additionalInstructions?.trim() ?? '', clinicalNoteIds: [...value.clinicalNoteIds], additionalInstructionIds: [...value.additionalInstructionIds],
     prescriptionItems: value.prescriptionItems.map(item => ({ medicationId: item.medicationId, dose: item.dose, frequency: item.frequency ?? 'Once daily', duration: item.duration.trim() })),
-    allowInsufficientStock: value.allowInsufficientStock === true
+    allowInsufficientStock: value.allowInsufficientStock === true,
+    saveAsTemplate: value.saveAsTemplate === true,
+    templateId: value.templateId ?? null,
+    ...(value.templateName === undefined ? {} : { templateName: value.templateName.trim() })
   }
 }
 

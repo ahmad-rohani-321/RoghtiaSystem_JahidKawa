@@ -48,7 +48,7 @@ export async function requestOwnedApi<T>(event: H3Event, path: string, options: 
     const failure = error as { statusCode?: number, data?: { code?: string } }
     const status = [400, 401, 403, 404, 409, 413, 415, 429].includes(failure.statusCode || 0) ? failure.statusCode! : 503
     if (status === 401) clearAuthCookie(event)
-    const allowedCodes = ['VALIDATION_ERROR', 'UNAUTHENTICATED', 'FORBIDDEN', 'NOT_FOUND', 'DUPLICATE_MEDICATION', 'DOCTOR_INFORMATION_EXISTS', 'INSUFFICIENT_STOCK', 'INVALID_IMAGE', 'IMAGE_TOO_LARGE', 'PASSWORD_INCORRECT', 'TOO_MANY_REQUESTS']
+    const allowedCodes = ['VALIDATION_ERROR', 'UNAUTHENTICATED', 'FORBIDDEN', 'NOT_FOUND', 'DUPLICATE_MEDICATION', 'DOCTOR_INFORMATION_EXISTS', 'TEMPLATE_NAME_EXISTS', 'INSUFFICIENT_STOCK', 'INVALID_IMAGE', 'IMAGE_TOO_LARGE', 'PASSWORD_INCORRECT', 'TOO_MANY_REQUESTS']
     const fallback: Record<number, string> = { 400: 'VALIDATION_ERROR', 401: 'UNAUTHENTICATED', 403: 'FORBIDDEN', 404: 'NOT_FOUND', 409: 'DOCTOR_INFORMATION_EXISTS', 413: 'IMAGE_TOO_LARGE', 415: 'INVALID_IMAGE', 429: 'TOO_MANY_REQUESTS', 503: 'SERVICE_UNAVAILABLE' }
     throw createError({ statusCode: status, data: { code: allowedCodes.includes(failure.data?.code || '') ? failure.data!.code : fallback[status] } })
   }

@@ -18,7 +18,9 @@ const printGrayscale = ref(route.query.grayscale === '1')
 
 const info = computed(() => doctor.information.value)
 const doctorName = computed(() => info.value?.doctorNameEnglish || auth.user.value?.userName || 'Doctor')
+const doctorNamePashto = computed(() => info.value?.doctorNamePashto?.trim() || '')
 const profession = computed(() => info.value?.doctorProfessionEnglish || '')
+const professionPashto = computed(() => info.value?.doctorProfessionPashto?.trim() || '')
 const hospitalLogo = computed(() => info.value?.hospitalLogo || null)
 const hospitalName = computed(() => info.value?.hospitalNamePashto?.trim() || '')
 const hospitalAddress = computed(() => info.value?.hospitalAddress?.trim() || '')
@@ -97,10 +99,18 @@ onMounted(loadTreatment)
     <template v-else-if="treatment">
     <div class="print-toolbar"><UButton :to="`/treatments/${id}/edit`" color="neutral" variant="outline" icon="i-lucide-arrow-left">Back to editor</UButton><PrescriptionPrintOptions v-model:a5="printAsA5" v-model:grayscale="printGrayscale" /><UButton type="button" icon="i-lucide-printer" :loading="printPending" @click="printDocument">Print</UButton></div>
     <article class="print-sheet" :class="{ 'print-sheet-a5': printAsA5, 'print-sheet-grayscale': printGrayscale }" dir="ltr" aria-label="Printable treatment prescription">
-      <header class="sheet-header" :class="{ 'without-doctor-logo': !doctorLogo }">
-        <div class="clinic-brand"><div class="logo-frame"><img v-if="hospitalLogo" :src="hospitalLogo" alt="Hospital logo"><UIcon v-else name="i-lucide-heart-pulse" /></div><p v-if="hospitalName" class="hospital-name" dir="rtl"><bdi>{{ hospitalName }}</bdi></p></div>
-        <div v-if="doctorLogo" class="doctor-logo-frame"><img :src="doctorLogo" alt="Doctor logo"></div>
-        <div class="doctor-brand"><h2><bdi>{{ doctorName }}</bdi></h2><p v-if="profession"><bdi>{{ profession }}</bdi></p><p class="doctor-user">{{ auth.user.value?.userName }}</p></div>
+      <img v-if="doctorLogo" class="doctor-watermark" :src="doctorLogo" alt="" aria-hidden="true">
+      <header class="sheet-header">
+        <div class="doctor-brand doctor-brand-en">
+          <img v-if="hospitalLogo" class="hospital-logo" :src="hospitalLogo" alt="Hospital logo">
+          <div class="doctor-credentials"><h2><bdi>{{ doctorName }}</bdi></h2><p v-if="profession"><bdi>{{ profession }}</bdi></p></div>
+        </div>
+        <div class="doctor-logo-frame"><img v-if="doctorLogo" :src="doctorLogo" alt="Doctor logo"></div>
+        <div class="doctor-brand doctor-brand-ps" dir="rtl">
+          <h2 v-if="hospitalName" class="hospital-name"><bdi>{{ hospitalName }}</bdi></h2>
+          <p v-if="doctorNamePashto" class="doctor-name-ps"><bdi>{{ doctorNamePashto }}</bdi></p>
+          <p v-if="professionPashto"><bdi>{{ professionPashto }}</bdi></p>
+        </div>
       </header>
 
       <section class="patient-box"><h2><UIcon name="i-lucide-user-round" /> Patient information</h2><div class="patient-grid"><dl><div><dt>Name</dt><dd><bdi>{{ treatment.patient.name }}</bdi></dd></div><div><dt>Code</dt><dd dir="ltr">{{ treatment.patient.code }}</dd></div><div><dt>Age / Gender</dt><dd>{{ localNumber(treatment.patient.age) }} years / {{ genders[treatment.patient.gender] || treatment.patient.gender }}</dd></div><div><dt>Phone</dt><dd dir="ltr">{{ treatment.patient.phone || '—' }}</dd></div></dl><dl><div><dt>Date</dt><dd>{{ dateParts[0] }}</dd></div><div><dt>Time</dt><dd dir="ltr">{{ dateParts[1] }}</dd></div><div><dt>Blood pressure</dt><dd dir="ltr">{{ treatment.bloodPressure || '—' }}</dd></div><div><dt>Address</dt><dd><bdi>{{ treatment.patient.address || '—' }}</bdi></dd></div></dl></div></section>
@@ -129,20 +139,26 @@ onMounted(loadTreatment)
 .print-state .iconify { width: 20px; height: 20px; }
 .print-error { justify-content: space-between; }
 .print-toolbar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; }
-.print-sheet { position: relative; display: flex; flex-direction: column; gap: 12px; width: 210mm; min-height: 297mm; box-sizing: border-box; padding: 11mm 10mm 16mm; overflow: hidden; background: #fff; box-shadow: 0 20px 55px #173f3426; font-family: 'Vazirmatn', 'Segoe UI', Arial, sans-serif; font-size: 9.5pt; line-height: 1.4; }
-.sheet-header { display: grid; grid-template-columns: minmax(34mm, .9fr) minmax(18mm, 22mm) minmax(48mm, 1fr); gap: 4mm; align-items: center; min-height: 25mm; padding: 0 0 4mm; }
-.sheet-header.without-doctor-logo { grid-template-columns: minmax(30mm, 1fr) minmax(48mm, .9fr); }
-.clinic-brand { display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 0; }
-.logo-frame { display: grid; place-items: center; width: 22mm; height: 22mm; flex-shrink: 0; color: #07553e; }
-.logo-frame img { display: block; width: 100%; height: 100%; object-fit: contain; }
-.logo-frame .iconify { width: 18mm; height: 18mm; }
-.hospital-name { max-width: 45mm; margin: 1mm 0 0; color: #064735; font-size: 11pt; font-weight: 700; line-height: 1.2; text-align: center; overflow-wrap: anywhere; }
-.doctor-logo-frame { display: grid; place-items: center; width: 21mm; height: 21mm; justify-self: center; overflow: hidden; }
+.print-sheet { position: relative; isolation: isolate; display: flex; flex-direction: column; gap: 12px; width: 210mm; min-height: 297mm; box-sizing: border-box; padding: 11mm 10mm 16mm; overflow: hidden; background: #fff; box-shadow: 0 20px 55px #173f3426; font-family: 'Vazirmatn', 'Segoe UI', Arial, sans-serif; font-size: 9.5pt; line-height: 1.4; }
+.doctor-watermark { position: absolute; z-index: -1; top: 50%; left: 50%; width: 112mm; height: 112mm; object-fit: contain; opacity: .045; transform: translate(-50%, -50%); pointer-events: none; }
+.sheet-header { position: relative; z-index: 1; display: grid; grid-template-columns: minmax(0, 1.1fr) 28mm minmax(0, 1fr); gap: 6mm; align-items: center; min-height: 38mm; padding: 0 0 3mm; border-bottom: .45mm solid #718b7c; }
+.doctor-brand { min-width: 0; }
+.doctor-brand-en { display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 1.5mm; }
+.hospital-logo { display: block; width: 37mm; height: 18mm; object-fit: contain; object-position: left center; }
+.doctor-credentials { display: grid; gap: .7mm; }
+.doctor-logo-frame { display: grid; place-items: center; width: 29mm; height: 34mm; justify-self: center; overflow: hidden; }
 .doctor-logo-frame img { display: block; width: 100%; height: 100%; object-fit: contain; }
-.doctor-brand { min-width: 0; padding: 0; }
-.doctor-brand h2 { margin: 0; color: #064735; font-size: 16pt; line-height: 1.2; overflow-wrap: anywhere; }
-.doctor-brand p { margin: 1.5mm 0 0; font-size: 9.5pt; line-height: 1.3; overflow-wrap: anywhere; }
-.doctor-user { color: #597268; }
+.doctor-brand h2 { margin: 0; color: #064735; font-size: 15pt; line-height: 1.2; overflow-wrap: anywhere; }
+.doctor-brand-en h2 { color: #b6192d; }
+.doctor-brand p { margin: 0; font-size: 9pt; line-height: 1.25; overflow-wrap: anywhere; }
+.doctor-brand-ps { display: flex; flex-direction: column; align-items: flex-end; justify-content: center; gap: 1mm; text-align: right; }
+.doctor-brand-ps .hospital-name { color: #17364a; font-size: 15pt; font-weight: 800; line-height: 1.2; }
+.doctor-brand-ps .doctor-name-ps { color: #b6192d; font-size: 15pt; font-weight: 700; }
+.print-sheet-a5 .sheet-header { grid-template-columns: minmax(0, 1.1fr) 22mm minmax(0, 1fr); gap: 2mm; min-height: 30mm; padding-bottom: 2mm; }
+.print-sheet-a5 .hospital-logo { width: 30mm; height: 13mm; }
+.print-sheet-a5 .doctor-logo-frame { width: 21mm; height: 27mm; }
+.print-sheet-a5 .doctor-brand h2, .print-sheet-a5 .doctor-brand-ps .hospital-name, .print-sheet-a5 .doctor-brand-ps .doctor-name-ps { font-size: 10pt; }
+.print-sheet-a5 .doctor-brand p { font-size: 7.5pt; }
 .patient-box, .notes-box, .instructions-box { border: 1px solid #bfd9cd; border-radius: 3mm; background: linear-gradient(110deg, #f0f7f3, #f8fbf8); }
 .patient-box { padding: 3mm 4mm; }
 .patient-box h2, .notes-box h2, .instructions-box h2 { display: flex; align-items: center; gap: 3mm; margin: 0 0 2mm; color: #064735; font-size: 11pt; }
@@ -182,7 +198,7 @@ onMounted(loadTreatment)
 .hospital-footer { grid-column: 1 / -1; display: flex; flex-wrap: wrap; justify-content: center; gap: 2mm 8mm; border-top: 1px solid #bfd9cd; padding-top: 2mm; color: #36594d; font-size: 8pt; line-height: 1.4; text-align: center; overflow-wrap: anywhere; }
 .green-wave { position: absolute; z-index: 0; inset-inline: -5mm; bottom: -7mm; height: 20mm; border-top: 2mm solid #91a851; border-radius: 50% 50% 0 0; background: linear-gradient(115deg, #064735, #168363); transform: rotate(-2deg); pointer-events: none; }
 .print-sheet-grayscale { filter: grayscale(100%); }
-@media (max-width: 700px) { .print-sheet { padding: 20px 14px 55px; min-height: 0; gap: 18px; font-size: 12px; }.sheet-header { grid-template-columns: minmax(0, 1fr) minmax(32px, 42px) minmax(0, 1fr); gap: 8px; min-height: 52px; padding-bottom: 8px; }.sheet-header.without-doctor-logo { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }.logo-frame { width: 42px; height: 42px; }.hospital-name { max-width: 100%; margin-top: 3px; font-size: 12px; }.doctor-logo-frame { width: 36px; height: 36px; }.doctor-brand h2 { font-size: 14px; }.doctor-brand p { font-size: 10px; }.patient-grid { gap: 8px; }.patient-grid > dl + dl { padding-inline-start: 8px; }.patient-grid dl div { grid-template-columns: 70px minmax(0, 1fr); }.rx-mark { font-size: 38px; }.rx-mark sub { font-size: 18px; }.rx-title h2 { font-size: 22px; }.prescription-section { overflow-x: auto; }.prescription-section table { min-width: 480px; }.sheet-footer { margin-top: 25px; }.hospital-footer { font-size: 10px; }.green-wave { height: 35px; bottom: -12px; } }
+@media (max-width: 700px) { .print-sheet { padding: 20px 14px 55px; min-height: 0; gap: 18px; font-size: 12px; }.sheet-header { grid-template-columns: minmax(0, 1fr) 38px minmax(0, 1fr); gap: 8px; min-height: 70px; padding-bottom: 8px; }.hospital-logo { width: 75px; height: 34px; }.doctor-logo-frame { width: 34px; height: 42px; }.doctor-brand h2, .doctor-brand-ps .hospital-name, .doctor-brand-ps .doctor-name-ps { font-size: 10px; }.doctor-brand p { font-size: 8px; }.doctor-watermark { width: min(70vw, 100mm); height: min(70vw, 100mm); }.patient-grid { gap: 8px; }.patient-grid > dl + dl { padding-inline-start: 8px; }.patient-grid dl div { grid-template-columns: 70px minmax(0, 1fr); }.rx-mark { font-size: 38px; }.rx-mark sub { font-size: 18px; }.rx-title h2 { font-size: 22px; }.prescription-section { overflow-x: auto; }.prescription-section table { min-width: 480px; }.sheet-footer { margin-top: 25px; }.hospital-footer { font-size: 10px; }.green-wave { height: 35px; bottom: -12px; } }
 @media print {
   @page { size: A4 portrait; margin: 0; }
   :global(html), :global(body), :global(#__nuxt) { display: block !important; width: auto !important; min-height: 0 !important; margin: 0 !important; padding: 0 !important; overflow: visible !important; background: #fff !important; }

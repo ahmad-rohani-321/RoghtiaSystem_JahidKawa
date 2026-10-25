@@ -142,6 +142,14 @@ namespace RoghtiaSystem_JahidKawa.Server.Data
                 );
                 CREATE INDEX IF NOT EXISTS IX_Treatments_UserId_RecordedAtUtc ON Treatments (UserId, RecordedAtUtc);
                 CREATE INDEX IF NOT EXISTS IX_Treatments_UserId_PatientId ON Treatments (UserId, PatientId);
+                CREATE TABLE IF NOT EXISTS TreatmentTemplates (
+                    Id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+                    UserId INTEGER NOT NULL,
+                    Name TEXT COLLATE NOCASE NOT NULL CHECK (length(Name) BETWEEN 1 AND 100),
+                    DataJson TEXT NOT NULL CHECK (length(DataJson) <= 20000),
+                    FOREIGN KEY (UserId) REFERENCES Users (Id) ON DELETE RESTRICT
+                );
+                CREATE UNIQUE INDEX IF NOT EXISTS IX_TreatmentTemplates_UserId_Name ON TreatmentTemplates (UserId, Name);
                 CREATE TABLE IF NOT EXISTS PrescriptionItems (
                     Id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
                     TreatmentId INTEGER NOT NULL,

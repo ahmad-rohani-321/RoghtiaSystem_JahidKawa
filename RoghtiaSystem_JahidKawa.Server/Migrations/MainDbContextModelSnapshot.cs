@@ -330,6 +330,34 @@ namespace RoghtiaSystem_JahidKawa.Server.Migrations
                     b.ToTable("TreatmentClinicalNotes");
                 });
 
+            modelBuilder.Entity("RoghtiaSystem_JahidKawa.Server.Data.Models.TreatmentTemplate", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("DataJson")
+                        .IsRequired()
+                        .HasMaxLength(20000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "Name")
+                        .IsUnique();
+
+                    b.ToTable("TreatmentTemplates");
+                });
+
             modelBuilder.Entity("RoghtiaSystem_JahidKawa.Server.Data.Models.Users", b =>
                 {
                     b.Property<int>("Id")
@@ -514,6 +542,17 @@ namespace RoghtiaSystem_JahidKawa.Server.Migrations
                     b.Navigation("ClinicalNote");
 
                     b.Navigation("Treatment");
+                });
+
+            modelBuilder.Entity("RoghtiaSystem_JahidKawa.Server.Data.Models.TreatmentTemplate", b =>
+                {
+                    b.HasOne("RoghtiaSystem_JahidKawa.Server.Data.Models.Users", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("RoghtiaSystem_JahidKawa.Server.Data.Models.Treatment", b =>
