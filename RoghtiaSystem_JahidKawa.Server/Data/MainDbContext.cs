@@ -20,6 +20,8 @@ namespace RoghtiaSystem_JahidKawa.Server.Data
         public DbSet<TreatmentClinicalNote> TreatmentClinicalNotes { get; set; }
         public DbSet<AdditionalInstruction> AdditionalInstructions { get; set; }
         public DbSet<TreatmentAdditionalInstruction> TreatmentAdditionalInstructions { get; set; }
+        public DbSet<DiagnosticInvestigation> DiagnosticInvestigations { get; set; }
+        public DbSet<TreatmentDiagnosticInvestigation> TreatmentDiagnosticInvestigations { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -122,6 +124,19 @@ namespace RoghtiaSystem_JahidKawa.Server.Data
                 link.HasKey(l => new { l.TreatmentId, l.AdditionalInstructionId });
                 link.HasOne(l => l.Treatment).WithMany(t => t.AdditionalInstructionItems).HasForeignKey(l => l.TreatmentId).OnDelete(DeleteBehavior.Cascade);
                 link.HasOne(l => l.AdditionalInstruction).WithMany().HasForeignKey(l => l.AdditionalInstructionId).OnDelete(DeleteBehavior.Restrict);
+            });
+            modelBuilder.Entity<DiagnosticInvestigation>(item =>
+            {
+                item.Property(n => n.Kind).IsRequired().HasMaxLength(20).HasDefaultValue("Diagnostic");
+                item.Property(n => n.Text).IsRequired().HasMaxLength(300);
+                item.HasOne(n => n.User).WithMany().HasForeignKey(n => n.UserId).OnDelete(DeleteBehavior.Restrict);
+                item.HasIndex(n => new { n.UserId, n.Kind, n.Text }).IsUnique();
+            });
+            modelBuilder.Entity<TreatmentDiagnosticInvestigation>(link =>
+            {
+                link.HasKey(l => new { l.TreatmentId, l.DiagnosticInvestigationId });
+                link.HasOne(l => l.Treatment).WithMany(t => t.DiagnosticInvestigations).HasForeignKey(l => l.TreatmentId).OnDelete(DeleteBehavior.Cascade);
+                link.HasOne(l => l.DiagnosticInvestigation).WithMany().HasForeignKey(l => l.DiagnosticInvestigationId).OnDelete(DeleteBehavior.Restrict);
             });
         }
     }

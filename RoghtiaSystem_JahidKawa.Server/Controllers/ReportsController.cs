@@ -99,6 +99,20 @@ namespace RoghtiaSystem_JahidKawa.Server.Controllers
                 .OrderBy(item => item.Text).ThenBy(item => item.Id).Select(item => new { item.Id, item.Text }).ToListAsync(cancellationToken);
             var instructionReport = instructions.Select(item => new TextUsageReportItem(item.Text, instructionUseById.GetValueOrDefault(item.Id))).ToList();
 
+            var diagnosticUses = await context.TreatmentDiagnosticInvestigations.AsNoTracking()
+                .Where(link => link.Treatment.UserId == ownerId && link.Treatment.RecordedAtUtc >= start && link.Treatment.RecordedAtUtc < end && link.DiagnosticInvestigation.UserId == ownerId)
+                .GroupBy(link => link.DiagnosticInvestigationId).Select(group => new { Id = group.Key, Uses = group.Count() })
+                .ToListAsync(cancellationToken);
+            var diagnosticUseById = diagnosticUses.ToDictionary(item => item.Id, item => item.Uses);
+            var diagnostics = await context.DiagnosticInvestigations.AsNoTracking().Where(item => item.UserId == ownerId)
+                .OrderBy(item => item.Text).ThenBy(item => item.Id).Select(item => new { item.Id, item.Kind, item.Text }).ToListAsync(cancellationToken);
+            var diagnosticReport = diagnostics.Where(item => item.Kind == "Diagnostic")
+                .Select(item => new TextUsageReportItem(item.Text, diagnosticUseById.GetValueOrDefault(item.Id))).ToList();
+            var investigationReport = diagnostics.Where(item => item.Kind == "Investigation")
+                .Select(item => new TextUsageReportItem(item.Text, diagnosticUseById.GetValueOrDefault(item.Id))).ToList();
+            var diagnosticAndInvestigationReport = diagnostics
+                .Select(item => new TextUsageReportItem(item.Text, diagnosticUseById.GetValueOrDefault(item.Id))).ToList();
+
             // Prescription counts per day are grouped by the same Kabul-local calendar day as treatment counts.
             var prescribedAt = await treatments.Where(item => item.PrescriptionItems.Any())
                 .Select(item => item.RecordedAtUtc).ToListAsync(cancellationToken);
@@ -109,7 +123,7 @@ namespace RoghtiaSystem_JahidKawa.Server.Controllers
 
             return Ok(new ReportsResponse(start, end,
                 new TreatmentReportResponse(treatmentTotal, withPrescription, byDay, mostVisited),
-                medicationReport, patientReport, noteReport, instructionReport));
+                medicationReport, patientReport, noteReport, instructionReport, diagnosticReport, investigationReport, diagnosticAndInvestigationReport));
         }
     }
 }

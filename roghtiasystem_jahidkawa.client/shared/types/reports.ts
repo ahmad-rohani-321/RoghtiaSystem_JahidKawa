@@ -11,4 +11,7 @@ export interface ReportsResponse {
   patients: PatientReportItem[]
   clinicalNotes: TextUsageReportItem[]
   additionalInstructions: TextUsageReportItem[]
+  diagnostics: TextUsageReportItem[]
+  investigations: TextUsageReportItem[]
+  diagnosticsAndInvestigations?: TextUsageReportItem[]
 }

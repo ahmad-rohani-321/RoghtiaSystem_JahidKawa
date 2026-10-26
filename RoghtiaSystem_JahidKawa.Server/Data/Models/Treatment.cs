@@ -22,6 +22,7 @@ namespace RoghtiaSystem_JahidKawa.Server.Data.Models
         public List<PrescriptionItem> PrescriptionItems { get; set; } = [];
         public List<TreatmentClinicalNote> ClinicalNotes { get; set; } = [];
         public List<TreatmentAdditionalInstruction> AdditionalInstructionItems { get; set; } = [];
+        public List<TreatmentDiagnosticInvestigation> DiagnosticInvestigations { get; set; } = [];
     }
 
     public class PrescriptionItem
@@ -70,5 +71,22 @@ namespace RoghtiaSystem_JahidKawa.Server.Data.Models
         public Treatment Treatment { get; set; } = null!;
         public int AdditionalInstructionId { get; set; }
         public AdditionalInstruction AdditionalInstruction { get; set; } = null!;
+    }
+
+    public class DiagnosticInvestigation
+    {
+        public int Id { get; set; }
+        public int UserId { get; set; }
+        public Users User { get; set; } = null!;
+        public string Kind { get; set; } = "Diagnostic";
+        public string Text { get; set; } = string.Empty;
+    }
+
+    public class TreatmentDiagnosticInvestigation
+    {
+        public int TreatmentId { get; set; }
+        public Treatment Treatment { get; set; } = null!;
+        public int DiagnosticInvestigationId { get; set; }
+        public DiagnosticInvestigation DiagnosticInvestigation { get; set; } = null!;
     }
 }

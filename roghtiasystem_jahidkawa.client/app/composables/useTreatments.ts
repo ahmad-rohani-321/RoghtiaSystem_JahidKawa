@@ -1,4 +1,4 @@
-import type { AdditionalInstruction, ClinicalNote, DashboardSummary, Treatment, TreatmentInput, TreatmentPage, TreatmentQuery, TreatmentTemplate } from '#shared/types/treatment'
+import type { AdditionalInstruction, ClinicalNote, DashboardSummary, DiagnosticInvestigation, Treatment, TreatmentInput, TreatmentPage, TreatmentQuery, TreatmentTemplate } from '#shared/types/treatment'
 import { notifyDashboardDataChanged } from '~/utils/dashboardRefresh'
 
 export function useTreatments() {
@@ -29,5 +29,9 @@ export function useTreatments() {
   const addAdditionalInstruction = (text: string) => $fetch<AdditionalInstruction>('/api/additional-instructions', {
     method: 'POST', body: { text }, headers: { 'x-roghtia-request': '1' }, retry: 0
   })
-  return { list, get, dashboard, templates, create, update, clinicalNotes, addClinicalNote, additionalInstructions, addAdditionalInstruction }
+  const diagnosticsAndInvestigations = (kind: 'Diagnostic' | 'Investigation') => requestFetch<DiagnosticInvestigation[]>('/api/diagnostics-investigations', { query: { kind }, retry: 0 })
+  const addDiagnosticInvestigation = (text: string, kind: 'Diagnostic' | 'Investigation') => $fetch<DiagnosticInvestigation>('/api/diagnostics-investigations', {
+    method: 'POST', body: { text, kind }, headers: { 'x-roghtia-request': '1' }, retry: 0
+  })
+  return { list, get, dashboard, templates, create, update, clinicalNotes, addClinicalNote, additionalInstructions, addAdditionalInstruction, diagnosticsAndInvestigations, addDiagnosticInvestigation }
 }

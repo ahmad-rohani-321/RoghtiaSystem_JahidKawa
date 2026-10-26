@@ -7,7 +7,10 @@ namespace RoghtiaSystem_JahidKawa.Server.ViewModels
         IReadOnlyList<MedicationReportItem> Medications,
         IReadOnlyList<PatientReportItem> Patients,
         IReadOnlyList<TextUsageReportItem> ClinicalNotes,
-        IReadOnlyList<TextUsageReportItem> AdditionalInstructions);
+        IReadOnlyList<TextUsageReportItem> AdditionalInstructions,
+        IReadOnlyList<TextUsageReportItem> Diagnostics,
+        IReadOnlyList<TextUsageReportItem> Investigations,
+        IReadOnlyList<TextUsageReportItem> DiagnosticsAndInvestigations);
 
     public record TreatmentReportResponse(
         int Total,

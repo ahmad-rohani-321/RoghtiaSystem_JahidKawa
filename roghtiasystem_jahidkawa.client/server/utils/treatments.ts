@@ -48,6 +48,15 @@ export async function readTreatmentInput(event: H3Event): Promise<TreatmentInput
   const raw = await readLimitedBody(event, 32 * 1024, 'VALIDATION_ERROR')
   let value: Partial<TreatmentInput> | null
   try { value = JSON.parse(raw.toString('utf8')) } catch { throw invalid() }
+  const legacyDiagnosticIds = (value as (Partial<TreatmentInput> & { diagnosticInvestigationIds?: unknown }) | null)?.diagnosticInvestigationIds
+  const hasSplitDiagnosticFields = value?.diagnosticIds !== undefined || value?.investigationIds !== undefined
+  if (!value ||
+      (value.diagnosticIds !== undefined && !Array.isArray(value.diagnosticIds)) ||
+      (value.investigationIds !== undefined && !Array.isArray(value.investigationIds)) ||
+      (legacyDiagnosticIds !== undefined && !Array.isArray(legacyDiagnosticIds))) throw invalid()
+  const diagnosticIds = hasSplitDiagnosticFields ? value.diagnosticIds ?? [] : Array.isArray(legacyDiagnosticIds) ? legacyDiagnosticIds : []
+  const investigationIds = hasSplitDiagnosticFields ? value.investigationIds ?? [] : []
+  const allDiagnosticIds = [...diagnosticIds, ...investigationIds]
   if (!value || !Number.isInteger(value.patientId) || value.patientId! < 1 || value.patientId! > 2147483647 ||
       typeof value.bloodPressure !== 'string' || !/^(?:|[1-9][0-9]{1,2}\/[1-9][0-9]{1,2})$/.test(value.bloodPressure.trim()) ||
       (value.additionalInstructions !== undefined && (typeof value.additionalInstructions !== 'string' || value.additionalInstructions.trim().length > 2000)) ||
@@ -56,6 +65,9 @@ export async function readTreatmentInput(event: H3Event): Promise<TreatmentInput
       new Set(value.clinicalNoteIds).size !== value.clinicalNoteIds.length ||
       !Array.isArray(value.additionalInstructionIds) || value.additionalInstructionIds.length > 20 ||
       value.additionalInstructionIds.some(id => !Number.isInteger(id) || id < 1 || id > 2147483647) ||
+      diagnosticIds.some(id => !Number.isInteger(id) || id < 1 || id > 2147483647) ||
+      investigationIds.some(id => !Number.isInteger(id) || id < 1 || id > 2147483647) ||
+      allDiagnosticIds.length > 20 || new Set(allDiagnosticIds).size !== allDiagnosticIds.length ||
       new Set(value.additionalInstructionIds).size !== value.additionalInstructionIds.length ||
       !Array.isArray(value.prescriptionItems) || value.prescriptionItems.length > 30 ||
       value.prescriptionItems.some(item => !item || !Number.isInteger(item.medicationId) || item.medicationId < 1 || item.medicationId > 2147483647 ||
@@ -67,7 +79,7 @@ export async function readTreatmentInput(event: H3Event): Promise<TreatmentInput
       (value.templateId !== undefined && value.templateId !== null && (!Number.isInteger(value.templateId) || value.templateId < 1 || value.templateId > 2147483647)) ||
       (value.templateName !== undefined && (typeof value.templateName !== 'string' || value.templateName.trim().length > 100))) throw invalid()
   return {
-    patientId: value.patientId!, bloodPressure: value.bloodPressure.trim(), additionalInstructions: value.additionalInstructions?.trim() ?? '', clinicalNoteIds: [...value.clinicalNoteIds], additionalInstructionIds: [...value.additionalInstructionIds],
+    patientId: value.patientId!, bloodPressure: value.bloodPressure.trim(), additionalInstructions: value.additionalInstructions?.trim() ?? '', clinicalNoteIds: [...value.clinicalNoteIds], additionalInstructionIds: [...value.additionalInstructionIds], diagnosticIds: [...diagnosticIds], investigationIds: [...investigationIds],
     prescriptionItems: value.prescriptionItems.map(item => ({ medicationId: item.medicationId, dose: item.dose, frequency: item.frequency ?? 'Once daily', duration: item.duration.trim() })),
     allowInsufficientStock: value.allowInsufficientStock === true,
     saveAsTemplate: value.saveAsTemplate === true,

@@ -14,6 +14,13 @@ namespace RoghtiaSystem_JahidKawa.Server.ViewModels
         public List<int>? ClinicalNoteIds { get; set; }
         [Required, MaxLength(20)]
         public List<int>? AdditionalInstructionIds { get; set; }
+        [MaxLength(20)]
+        public List<int>? DiagnosticIds { get; set; } = [];
+        [MaxLength(20)]
+        public List<int>? InvestigationIds { get; set; } = [];
+        // Older clients sent one combined list; keep accepting it during upgrades.
+        [MaxLength(20)]
+        public List<int>? DiagnosticInvestigationIds { get; set; }
         [Required, MaxLength(30)]
         public List<PrescriptionItemRequest>? PrescriptionItems { get; set; }
         public bool SaveAsTemplate { get; set; }
@@ -48,6 +55,14 @@ namespace RoghtiaSystem_JahidKawa.Server.ViewModels
         public string? Text { get; set; }
     }
 
+    public class DiagnosticInvestigationRequest
+    {
+        [Required, RegularExpression("^(Diagnostic|Investigation)$")]
+        public string? Kind { get; set; }
+        [Required, StringLength(300, MinimumLength = 1)]
+        public string? Text { get; set; }
+    }
+
     public class TreatmentQuery
     {
         [Range(1, int.MaxValue)]
@@ -63,11 +78,14 @@ namespace RoghtiaSystem_JahidKawa.Server.ViewModels
 
     public record ClinicalNoteResponse(int Id, string Text);
     public record AdditionalInstructionResponse(int Id, string Text);
+    public record DiagnosticInvestigationResponse(int Id, string Text, string Kind);
     public record PrescriptionItemResponse(int Id, int Position, int MedicationId, string MedicationName, string MedicationType, int Dose, string Frequency, string Duration);
     public record TreatmentPatientResponse(int Id, string Code, string Name, string Phone, int Age, string Gender, string Address);
     public record TreatmentSummaryResponse(int Id, DateTime RecordedAtUtc, TreatmentPatientResponse Patient, string BloodPressure, int MedicationCount, int ClinicalNoteCount);
     public record TreatmentResponse(int Id, DateTime RecordedAtUtc, TreatmentPatientResponse Patient, string BloodPressure, string AdditionalInstructions,
-        IReadOnlyList<ClinicalNoteResponse> ClinicalNotes, IReadOnlyList<AdditionalInstructionResponse> AdditionalInstructionItems, IReadOnlyList<PrescriptionItemResponse> PrescriptionItems);
+        IReadOnlyList<ClinicalNoteResponse> ClinicalNotes, IReadOnlyList<AdditionalInstructionResponse> AdditionalInstructionItems,
+        IReadOnlyList<DiagnosticInvestigationResponse> DiagnosticInvestigations, IReadOnlyList<DiagnosticInvestigationResponse> Diagnostics,
+        IReadOnlyList<DiagnosticInvestigationResponse> Investigations, IReadOnlyList<PrescriptionItemResponse> PrescriptionItems);
     public record TreatmentListResponse(IReadOnlyList<TreatmentSummaryResponse> Items, int Total, int Page, int PageSize);
     public class TreatmentTemplateData
     {
@@ -75,9 +93,14 @@ namespace RoghtiaSystem_JahidKawa.Server.ViewModels
         public string AdditionalInstructions { get; set; } = string.Empty;
         public List<int> ClinicalNoteIds { get; set; } = [];
         public List<int> AdditionalInstructionIds { get; set; } = [];
+        public List<int> DiagnosticIds { get; set; } = [];
+        public List<int> InvestigationIds { get; set; } = [];
+        // Older saved template JSON used a single combined list.
+        public List<int> DiagnosticInvestigationIds { get; set; } = [];
         public List<TreatmentTemplateItem> PrescriptionItems { get; set; } = [];
     }
     public record TreatmentTemplateItem(int MedicationId, int Dose, string Frequency, string Duration);
     public record TreatmentTemplateResponse(int Id, string Name, string BloodPressure, string AdditionalInstructions,
-        IReadOnlyList<int> ClinicalNoteIds, IReadOnlyList<int> AdditionalInstructionIds, IReadOnlyList<TreatmentTemplateItem> PrescriptionItems);
+        IReadOnlyList<int> ClinicalNoteIds, IReadOnlyList<int> AdditionalInstructionIds, IReadOnlyList<int> DiagnosticIds,
+        IReadOnlyList<int> InvestigationIds, IReadOnlyList<int> DiagnosticInvestigationIds, IReadOnlyList<TreatmentTemplateItem> PrescriptionItems);
 }

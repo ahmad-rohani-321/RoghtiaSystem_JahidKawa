@@ -61,6 +61,35 @@ namespace RoghtiaSystem_JahidKawa.Server.Migrations
                     b.ToTable("ClinicalNotes");
                 });
 
+            modelBuilder.Entity("RoghtiaSystem_JahidKawa.Server.Data.Models.DiagnosticInvestigation", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT")
+                        .HasDefaultValue("Diagnostic");
+
+                    b.Property<string>("Text")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "Kind", "Text")
+                        .IsUnique();
+
+                    b.ToTable("DiagnosticInvestigations");
+                });
+
             modelBuilder.Entity("RoghtiaSystem_JahidKawa.Server.Data.Models.DoctorInformation", b =>
                 {
                     b.Property<int>("LoggedInUserId")
@@ -330,6 +359,21 @@ namespace RoghtiaSystem_JahidKawa.Server.Migrations
                     b.ToTable("TreatmentClinicalNotes");
                 });
 
+            modelBuilder.Entity("RoghtiaSystem_JahidKawa.Server.Data.Models.TreatmentDiagnosticInvestigation", b =>
+                {
+                    b.Property<int>("TreatmentId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("DiagnosticInvestigationId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("TreatmentId", "DiagnosticInvestigationId");
+
+                    b.HasIndex("DiagnosticInvestigationId");
+
+                    b.ToTable("TreatmentDiagnosticInvestigations");
+                });
+
             modelBuilder.Entity("RoghtiaSystem_JahidKawa.Server.Data.Models.TreatmentTemplate", b =>
                 {
                     b.Property<int>("Id")
@@ -427,6 +471,17 @@ namespace RoghtiaSystem_JahidKawa.Server.Migrations
                 });
 
             modelBuilder.Entity("RoghtiaSystem_JahidKawa.Server.Data.Models.ClinicalNote", b =>
+                {
+                    b.HasOne("RoghtiaSystem_JahidKawa.Server.Data.Models.Users", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("RoghtiaSystem_JahidKawa.Server.Data.Models.DiagnosticInvestigation", b =>
                 {
                     b.HasOne("RoghtiaSystem_JahidKawa.Server.Data.Models.Users", "User")
                         .WithMany()
@@ -544,6 +599,25 @@ namespace RoghtiaSystem_JahidKawa.Server.Migrations
                     b.Navigation("Treatment");
                 });
 
+            modelBuilder.Entity("RoghtiaSystem_JahidKawa.Server.Data.Models.TreatmentDiagnosticInvestigation", b =>
+                {
+                    b.HasOne("RoghtiaSystem_JahidKawa.Server.Data.Models.DiagnosticInvestigation", "DiagnosticInvestigation")
+                        .WithMany()
+                        .HasForeignKey("DiagnosticInvestigationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("RoghtiaSystem_JahidKawa.Server.Data.Models.Treatment", "Treatment")
+                        .WithMany("DiagnosticInvestigations")
+                        .HasForeignKey("TreatmentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("DiagnosticInvestigation");
+
+                    b.Navigation("Treatment");
+                });
+
             modelBuilder.Entity("RoghtiaSystem_JahidKawa.Server.Data.Models.TreatmentTemplate", b =>
                 {
                     b.HasOne("RoghtiaSystem_JahidKawa.Server.Data.Models.Users", "User")
@@ -560,6 +634,8 @@ namespace RoghtiaSystem_JahidKawa.Server.Migrations
                     b.Navigation("AdditionalInstructionItems");
 
                     b.Navigation("ClinicalNotes");
+
+                    b.Navigation("DiagnosticInvestigations");
 
                     b.Navigation("PrescriptionItems");
                 });

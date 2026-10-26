@@ -1,5 +1,6 @@
 export interface ClinicalNote { id: number, text: string }
 export interface AdditionalInstruction { id: number, text: string }
+export interface DiagnosticInvestigation { id: number, text: string }
 export const prescriptionFrequencies = ['Once daily', 'Twice daily', 'Three times daily', 'Four times daily', 'Every 4 hours', 'Every 6 hours', 'Every 8 hours', 'Every 12 hours', 'Every 24 hours', 'As needed', 'Immediately', 'Single dose', 'At bedtime', 'Every morning', 'Every evening', 'Before meals', 'After meals', 'Before breakfast', 'After breakfast', 'Before lunch', 'After lunch', 'Before dinner', 'After dinner', 'With meals', 'Every other day', 'Weekly', 'Twice weekly', 'Monthly'] as const
 export const prescriptionFrequencyCodes: Partial<Record<typeof prescriptionFrequencies[number], string>> = {
   'Once daily': 'QD', 'Twice daily': 'BID', 'Three times daily': 'TID', 'Four times daily': 'QID',
@@ -28,6 +29,9 @@ export interface TreatmentInput {
   bloodPressure: string
   additionalInstructions: string
   additionalInstructionIds: number[]
+  diagnosticIds: number[]
+  investigationIds: number[]
+  diagnosticInvestigationIds?: number[]
   clinicalNoteIds: number[]
   prescriptionItems: PrescriptionItemInput[]
   allowInsufficientStock?: boolean
@@ -42,6 +46,9 @@ export interface TreatmentTemplate {
   additionalInstructions: string
   clinicalNoteIds: number[]
   additionalInstructionIds: number[]
+  diagnosticIds: number[]
+  investigationIds: number[]
+  diagnosticInvestigationIds?: number[]
   prescriptionItems: PrescriptionItemInput[]
 }
 export interface TreatmentSummary {
@@ -61,6 +68,9 @@ export interface Treatment {
   additionalInstructions: string
   clinicalNotes: ClinicalNote[]
   additionalInstructionItems: AdditionalInstruction[]
+  diagnosticInvestigations: DiagnosticInvestigation[]
+  diagnostics: DiagnosticInvestigation[]
+  investigations: DiagnosticInvestigation[]
   prescriptionItems: PrescriptionItem[]
 }
 export interface TreatmentPage { items: TreatmentSummary[], total: number, page: number, pageSize: number }

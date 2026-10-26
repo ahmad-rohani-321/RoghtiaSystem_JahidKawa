@@ -189,7 +189,27 @@ namespace RoghtiaSystem_JahidKawa.Server.Data
                     FOREIGN KEY (AdditionalInstructionId) REFERENCES AdditionalInstructions (Id) ON DELETE RESTRICT
                 );
                 CREATE INDEX IF NOT EXISTS IX_TreatmentAdditionalInstructions_AdditionalInstructionId ON TreatmentAdditionalInstructions (AdditionalInstructionId);
+                CREATE TABLE IF NOT EXISTS DiagnosticInvestigations (
+                    Id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+                    UserId INTEGER NOT NULL,
+                    Kind TEXT NOT NULL DEFAULT 'Diagnostic',
+                    Text TEXT NOT NULL,
+                    FOREIGN KEY (UserId) REFERENCES Users (Id) ON DELETE RESTRICT
+                );
+                CREATE TABLE IF NOT EXISTS TreatmentDiagnosticInvestigations (
+                    TreatmentId INTEGER NOT NULL,
+                    DiagnosticInvestigationId INTEGER NOT NULL,
+                    PRIMARY KEY (TreatmentId, DiagnosticInvestigationId),
+                    FOREIGN KEY (TreatmentId) REFERENCES Treatments (Id) ON DELETE CASCADE,
+                    FOREIGN KEY (DiagnosticInvestigationId) REFERENCES DiagnosticInvestigations (Id) ON DELETE RESTRICT
+                );
+                CREATE INDEX IF NOT EXISTS IX_TreatmentDiagnosticInvestigations_DiagnosticInvestigationId ON TreatmentDiagnosticInvestigations (DiagnosticInvestigationId);
                 """);
+                var diagnosticColumns = await GetColumnsAsync(connection, transaction, "DiagnosticInvestigations");
+                if (!diagnosticColumns.Contains("Kind"))
+                    await ExecuteAsync(connection, transaction, "ALTER TABLE DiagnosticInvestigations ADD COLUMN Kind TEXT NOT NULL DEFAULT 'Diagnostic'");
+                await ExecuteAsync(connection, transaction, "DROP INDEX IF EXISTS IX_DiagnosticInvestigations_UserId_Text");
+                await ExecuteAsync(connection, transaction, "CREATE UNIQUE INDEX IF NOT EXISTS IX_DiagnosticInvestigations_UserId_Kind_Text ON DiagnosticInvestigations (UserId, Kind, Text)");
                 var treatmentColumns = await GetColumnsAsync(connection, transaction, "Treatments");
                 if (!treatmentColumns.Contains("AdditionalInstructions"))
                     await ExecuteAsync(connection, transaction, "ALTER TABLE Treatments ADD COLUMN AdditionalInstructions TEXT NOT NULL DEFAULT ''");

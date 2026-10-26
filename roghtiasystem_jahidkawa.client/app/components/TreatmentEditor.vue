@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { Patient, PatientInput, PatientPage } from '#shared/types/patient'
 import type { Medication } from '#shared/types/medication'
-import { prescriptionFrequencies, prescriptionFrequencyCodes, type AdditionalInstruction, type ClinicalNote, type Treatment, type TreatmentInput, type TreatmentTemplate } from '#shared/types/treatment'
+import { prescriptionFrequencies, prescriptionFrequencyCodes, type AdditionalInstruction, type ClinicalNote, type DiagnosticInvestigation, type Treatment, type TreatmentInput, type TreatmentTemplate } from '#shared/types/treatment'
 
 const props = defineProps<{ treatmentId?: number }>()
 const editing = computed(() => props.treatmentId !== undefined)
@@ -28,6 +28,10 @@ const notes = ref<ClinicalNote[]>([])
 const selectedNoteIds = ref<number[]>([])
 const instructionOptions = ref<AdditionalInstruction[]>([])
 const selectedInstructionIds = ref<number[]>([])
+const diagnosticOptions = ref<DiagnosticInvestigation[]>([])
+const selectedDiagnosticIds = ref<number[]>([])
+const investigationOptions = ref<DiagnosticInvestigation[]>([])
+const selectedInvestigationIds = ref<number[]>([])
 const treatmentTemplates = ref<TreatmentTemplate[]>([])
 const selectedTemplateId = ref<number | null>(null)
 const templatesReady = ref(false)
@@ -43,6 +47,10 @@ const noteSaving = ref(false)
 const instructionOpen = ref(false)
 const instructionText = ref('')
 const instructionSaving = ref(false)
+const diagnosticOpen = ref(false)
+const diagnosticKind = ref<'Diagnostic' | 'Investigation'>('Diagnostic')
+const diagnosticText = ref('')
+const diagnosticSaving = ref(false)
 const pending = ref(false)
 const loading = ref(true)
 const ready = ref(false)
@@ -221,6 +229,11 @@ async function loadExisting() {
   legacyAdditionalInstructions.value = treatment.additionalInstructions
   selectedNoteIds.value = treatment.clinicalNotes.map(note => note.id)
   selectedInstructionIds.value = treatment.additionalInstructionItems.map(item => item.id)
+  const savedDiagnostics = treatment.diagnostics?.length || treatment.investigations?.length
+    ? treatment.diagnostics || []
+    : treatment.diagnosticInvestigations || []
+  selectedDiagnosticIds.value = savedDiagnostics.map(item => item.id)
+  selectedInvestigationIds.value = (treatment.investigations || []).map(item => item.id)
   rows.value = treatment.prescriptionItems.map(item => ({ key: ++rowKey, medicationId: item.medicationId, dose: item.dose, frequency: normalizeFrequency(item.frequency), duration: item.duration }))
 }
 
@@ -232,6 +245,8 @@ function selectTreatmentTemplate(value: number | null | undefined) {
   legacyAdditionalInstructions.value = template.additionalInstructions || ''
   selectedNoteIds.value = [...template.clinicalNoteIds]
   selectedInstructionIds.value = [...template.additionalInstructionIds]
+  selectedDiagnosticIds.value = [...(template.diagnosticIds || template.diagnosticInvestigationIds || [])]
+  selectedInvestigationIds.value = [...(template.investigationIds || [])]
   rows.value = template.prescriptionItems.length
     ? template.prescriptionItems.map(item => ({ key: ++rowKey, medicationId: item.medicationId, dose: item.dose, frequency: normalizeFrequency(item.frequency), duration: item.duration }))
     : [{ key: ++rowKey, medicationId: null, dose: 1, frequency: 'Once daily', duration: '' }]
@@ -245,7 +260,7 @@ async function loadOptions() {
   templateLoadMessage.value = ''
   templatesReady.value = false
   try {
-    const [first, clinicalNotes, savedInstructions] = await Promise.all([medicationsApi.list({ page: 1, pageSize: 100 }), treatmentsApi.clinicalNotes(), treatmentsApi.additionalInstructions()])
+    const [first, clinicalNotes, savedInstructions, savedDiagnostics, savedInvestigations] = await Promise.all([medicationsApi.list({ page: 1, pageSize: 100 }), treatmentsApi.clinicalNotes(), treatmentsApi.additionalInstructions(), treatmentsApi.diagnosticsAndInvestigations('Diagnostic'), treatmentsApi.diagnosticsAndInvestigations('Investigation')])
     const all = [...first.items]
     const totalPages = Math.ceil(first.total / 100)
     for (let page = 2; page <= totalPages; page++) {
@@ -255,6 +270,8 @@ async function loadOptions() {
     medications.value = all
     notes.value = clinicalNotes
     instructionOptions.value = savedInstructions
+    diagnosticOptions.value = savedDiagnostics
+    investigationOptions.value = savedInvestigations
     try {
       treatmentTemplates.value = await treatmentsApi.templates()
       templatesReady.value = true
@@ -322,6 +339,36 @@ async function addInstruction() {
   } finally { instructionSaving.value = false }
 }
 
+function openDiagnosticLibrary(kind: 'Diagnostic' | 'Investigation') {
+  diagnosticKind.value = kind
+  diagnosticText.value = ''
+  diagnosticOpen.value = true
+}
+
+async function addDiagnosticInvestigation() {
+  const text = diagnosticText.value.trim()
+  if (!text || text.length > 300 || diagnosticSaving.value) { serviceMessage.value = `${diagnosticKind.value} must contain 1 to 300 characters.`; return }
+  diagnosticSaving.value = true
+  serviceMessage.value = ''
+  try {
+    const saved = await treatmentsApi.addDiagnosticInvestigation(text, diagnosticKind.value)
+    if (diagnosticKind.value === 'Diagnostic') {
+      if (!diagnosticOptions.value.some(item => item.id === saved.id)) diagnosticOptions.value.push(saved)
+      if (!selectedDiagnosticIds.value.includes(saved.id)) selectedDiagnosticIds.value.push(saved.id)
+    } else {
+      if (!investigationOptions.value.some(item => item.id === saved.id)) investigationOptions.value.push(saved)
+      if (!selectedInvestigationIds.value.includes(saved.id)) selectedInvestigationIds.value.push(saved.id)
+    }
+    diagnosticText.value = ''
+    diagnosticOpen.value = false
+    toast.add({ title: `${diagnosticKind.value} added`, color: 'success' })
+  } catch (error: unknown) {
+    const failure = error as { statusCode?: number, status?: number }
+    if ((failure.statusCode || failure.status) === 401) return await navigateTo('/login')
+    serviceMessage.value = `Unable to save ${diagnosticKind.value.toLowerCase()}. Please try again.`
+  } finally { diagnosticSaving.value = false }
+}
+
 async function save(printAfter = false, allowInsufficientStock = false) {
   if (pending.value) return
   serviceMessage.value = ''
@@ -360,7 +407,7 @@ async function save(printAfter = false, allowInsufficientStock = false) {
       toast.add({ title: 'New patient registered', description: `Code: ${created.code}`, color: 'success' })
     }
     const input: TreatmentInput = {
-      patientId: selectedPatient.value!.id, bloodPressure: bloodPressure.value.trim(), additionalInstructions: legacyAdditionalInstructions.value, clinicalNoteIds: selectedNoteIds.value, additionalInstructionIds: selectedInstructionIds.value,
+      patientId: selectedPatient.value!.id, bloodPressure: bloodPressure.value.trim(), additionalInstructions: legacyAdditionalInstructions.value, clinicalNoteIds: selectedNoteIds.value, additionalInstructionIds: selectedInstructionIds.value, diagnosticIds: selectedDiagnosticIds.value, investigationIds: selectedInvestigationIds.value,
       prescriptionItems: rows.value.map(row => ({ medicationId: row.medicationId!, dose: Number(row.dose), frequency: row.frequency, duration: row.duration.trim() })),
       saveAsTemplate: saveAsTemplate.value,
       templateId: selectedTemplateId.value,
@@ -393,7 +440,7 @@ async function save(printAfter = false, allowInsufficientStock = false) {
   } finally { pending.value = false }
 }
 
-watch(() => auth.user.value?.id, () => { clearPatient(); ++patientRequest; patientModalOpen.value = false; insufficientStockOpen.value = false; patientResults.value = { items: [], total: 0, page: 1, pageSize: 10 }; medications.value = []; notes.value = []; selectedNoteIds.value = []; instructionOptions.value = []; selectedInstructionIds.value = []; treatmentTemplates.value = []; selectedTemplateId.value = null; saveAsTemplate.value = false; newTemplateName.value = ''; bloodPressure.value = '120/80'; legacyAdditionalInstructions.value = ''; rows.value = [{ key: ++rowKey, medicationId: null, dose: 1, frequency: 'Once daily', duration: '' }]; void loadOptions() })
+watch(() => auth.user.value?.id, () => { clearPatient(); ++patientRequest; patientModalOpen.value = false; insufficientStockOpen.value = false; patientResults.value = { items: [], total: 0, page: 1, pageSize: 10 }; medications.value = []; notes.value = []; selectedNoteIds.value = []; instructionOptions.value = []; selectedInstructionIds.value = []; diagnosticOptions.value = []; selectedDiagnosticIds.value = []; investigationOptions.value = []; selectedInvestigationIds.value = []; treatmentTemplates.value = []; selectedTemplateId.value = null; saveAsTemplate.value = false; newTemplateName.value = ''; bloodPressure.value = '120/80'; legacyAdditionalInstructions.value = ''; rows.value = [{ key: ++rowKey, medicationId: null, dose: 1, frequency: 'Once daily', duration: '' }]; void loadOptions() })
 onBeforeUnmount(() => { ++patientRequest; ++patientLookupRequest })
 await loadOptions()
 </script>
@@ -439,8 +486,8 @@ await loadOptions()
         <div class="prescription-table-wrap"><table class="prescription-table"><thead><tr><th>No.</th><th>Medications</th><th>Type</th><th>Dose</th><th>Frequency</th><th>Duration</th><th><span class="sr-only">Remove</span></th></tr></thead><tbody><tr v-for="(row, index) in rows" :key="row.key"><td data-label="No." class="row-number">{{ localNumber(index + 1) }}</td><td data-label="Medications"><USelectMenu v-model="row.medicationId" :items="medicationOptions" value-key="id" label-key="label" searchable searchable-placeholder="Search medications" placeholder="Select medication" size="lg" class="w-full" :aria-label="`Row ${index + 1} medication`" /></td><td data-label="Type"><span class="type-value">{{ row.medicationId ? medicationMap.get(row.medicationId)?.type || '—' : '—' }}</span></td><td data-label="Dose"><UInput v-model="row.dose" type="number" inputmode="numeric" :min="1" :max="2147483647" :step="1" size="lg" class="w-full" :aria-label="`Row ${index + 1} dose`" /></td><td data-label="Frequency"><USelect v-model="row.frequency" :items="frequencyOptions" size="lg" class="w-full" :aria-label="`Row ${index + 1} frequency`" /></td><td data-label="Duration"><UInput v-model="row.duration" :maxlength="100" placeholder="e.g. 7 days" size="lg" class="w-full" :aria-label="`Row ${index + 1} duration`" /></td><td data-label="Remove"><UButton type="button" color="error" variant="ghost" icon="i-lucide-trash-2" :aria-label="`Row ${index + 1} remove row`" @click="removeRow(row.key)" /></td></tr></tbody></table></div>
         <UButton type="button" color="neutral" variant="outline" icon="i-lucide-plus" :disabled="rows.length >= 30 || !medications.length" @click="addRow">Add medication row</UButton>
       </section>
-      <section class="panel form-section" aria-labelledby="treatment-title"><header class="section-heading"><span class="section-icon"><UIcon name="i-lucide-heart-pulse" /></span><div><h2 id="treatment-title">Treatment information</h2><p>Record blood pressure and clinical notes.</p></div></header>
-        <div class="treatment-fields"><UFormField label="Blood pressure (BP)" name="bloodPressure" help="e.g. 120/80"><UInput v-model="bloodPressure" name="bloodPressure" dir="ltr" inputmode="numeric" :maxlength="16" placeholder="120/80" size="xl" class="w-full" /></UFormField><div class="notes-field"><UFormField label="Clinical notes" name="clinicalNotes"><USelectMenu v-model="selectedNoteIds" :items="notes" value-key="id" label-key="text" multiple searchable searchable-placeholder="Search notes" placeholder="Select notes" size="xl" class="w-full" /></UFormField><UButton type="button" color="neutral" variant="outline" icon="i-lucide-plus" @click="noteOpen = true">New note</UButton></div><div class="notes-field instructions-field"><UFormField label="Additional instructions" name="additionalInstructions"><USelectMenu v-model="selectedInstructionIds" :items="instructionOptions" value-key="id" label-key="text" multiple searchable searchable-placeholder="Search instructions" placeholder="Select instructions" size="xl" class="w-full" /></UFormField><UButton type="button" color="neutral" variant="outline" icon="i-lucide-plus" @click="instructionOpen = true">Add instruction</UButton></div><p class="instructions-help">Select one or more saved instructions to print with the prescription.</p></div>
+      <section class="panel form-section treatment-information-section" aria-labelledby="treatment-title"><header class="section-heading"><span class="section-icon"><UIcon name="i-lucide-heart-pulse" /></span><div><h2 id="treatment-title">Treatment information</h2><p>Record blood pressure, notes, instructions, diagnostics and investigations.</p></div></header>
+        <div class="treatment-fields"><UFormField label="Blood pressure (BP)" name="bloodPressure" help="e.g. 120/80"><UInput v-model="bloodPressure" name="bloodPressure" dir="ltr" inputmode="numeric" :maxlength="16" placeholder="120/80" size="xl" class="w-full" /></UFormField><div class="notes-field"><UFormField label="Clinical notes" name="clinicalNotes"><USelectMenu v-model="selectedNoteIds" :items="notes" value-key="id" label-key="text" multiple searchable searchable-placeholder="Search notes" placeholder="Select notes" size="xl" class="w-full" /></UFormField><UButton type="button" color="neutral" variant="outline" icon="i-lucide-plus" @click="noteOpen = true">New note</UButton></div><div class="notes-field instructions-field"><UFormField label="Additional instructions" name="additionalInstructions"><USelectMenu v-model="selectedInstructionIds" :items="instructionOptions" value-key="id" label-key="text" multiple searchable searchable-placeholder="Search instructions" placeholder="Select instructions" size="xl" class="w-full" /></UFormField><UButton type="button" color="neutral" variant="outline" icon="i-lucide-plus" @click="instructionOpen = true">Add instruction</UButton></div><p class="instructions-help">Select one or more saved instructions to print with the prescription.</p><div class="notes-field instructions-field diagnostic-field"><UFormField label="Diagnostics" name="diagnostics"><USelectMenu v-model="selectedDiagnosticIds" :items="diagnosticOptions" value-key="id" label-key="text" multiple searchable searchable-placeholder="Search diagnostics" placeholder="Select diagnostics (optional)" size="xl" class="w-full" /></UFormField><UButton type="button" color="neutral" variant="outline" icon="i-lucide-plus" @click="openDiagnosticLibrary('Diagnostic')">Add diagnostic</UButton></div><div class="notes-field instructions-field diagnostic-field"><UFormField label="Investigations" name="investigations"><USelectMenu v-model="selectedInvestigationIds" :items="investigationOptions" value-key="id" label-key="text" multiple searchable searchable-placeholder="Search investigations" placeholder="Select investigations (optional)" size="xl" class="w-full" /></UFormField><UButton type="button" color="neutral" variant="outline" icon="i-lucide-plus" @click="openDiagnosticLibrary('Investigation')">Add investigation</UButton></div></div>
       </section>
       <div v-if="serviceMessage" class="page-error" role="alert"><UIcon name="i-lucide-circle-alert" />{{ serviceMessage }}</div>
       <section class="panel template-save-panel">
@@ -470,6 +517,7 @@ await loadOptions()
     </UModal>
     <UModal v-model:open="noteOpen" title="New clinical note" description="This note will also be available for future treatments." :dismissible="!noteSaving" :content="{ dir: 'ltr' }"><template #body><form class="note-form" @submit.prevent="addNote"><UFormField label="Remarks" required><UTextarea v-model="noteText" :maxlength="300" :rows="3" class="w-full" placeholder="Enter a clinical note" /></UFormField><p v-if="serviceMessage" role="alert">{{ serviceMessage }}</p><div><UButton type="submit" :loading="noteSaving">Save</UButton><UButton type="button" color="neutral" variant="ghost" :disabled="noteSaving" @click="noteOpen = false">Back</UButton></div></form></template></UModal>
     <UModal v-model:open="instructionOpen" title="New additional instruction" description="This instruction will be available for future treatments." :dismissible="!instructionSaving" :content="{ dir: 'ltr' }"><template #body><form class="note-form" @submit.prevent="addInstruction"><UFormField label="Instruction" required><UTextarea v-model="instructionText" :maxlength="300" :rows="3" class="w-full" placeholder="Enter an instruction for the patient" /></UFormField><p v-if="serviceMessage" role="alert">{{ serviceMessage }}</p><div><UButton type="submit" :loading="instructionSaving">Save instruction</UButton><UButton type="button" color="neutral" variant="ghost" :disabled="instructionSaving" @click="instructionOpen = false">Back</UButton></div></form></template></UModal>
+    <UModal v-model:open="diagnosticOpen" :title="`Add ${diagnosticKind.toLowerCase()}`" description="This item will be available for future treatments." :dismissible="!diagnosticSaving" :content="{ dir: 'ltr' }"><template #body><form class="note-form" @submit.prevent="addDiagnosticInvestigation"><UFormField :label="diagnosticKind" required><UTextarea v-model="diagnosticText" :maxlength="300" :rows="3" class="w-full" :placeholder="`Enter a ${diagnosticKind.toLowerCase()}`" /></UFormField><p v-if="serviceMessage" role="alert">{{ serviceMessage }}</p><div><UButton type="submit" :loading="diagnosticSaving">Save</UButton><UButton type="button" color="neutral" variant="ghost" :disabled="diagnosticSaving" @click="diagnosticOpen = false">Back</UButton></div></form></template></UModal>
   </section>
 </template>
 
@@ -519,10 +567,19 @@ await loadOptions()
 .prescription-table th { color: var(--muted); font-size: .875rem; font-weight: 500; }
 .prescription-table th:nth-child(1) { width: 6%; } .prescription-table th:nth-child(2) { width: 27%; } .prescription-table th:nth-child(3) { width: 14%; } .prescription-table th:nth-child(4) { width: 11%; } .prescription-table th:nth-child(5) { width: 21%; } .prescription-table th:nth-child(6) { width: 11%; }
 .row-number { font-weight: 650; }.type-value { overflow-wrap: anywhere; }
-.treatment-fields { display: grid; grid-template-columns: minmax(0, 260px) minmax(0, 1fr); gap: 20px; align-items: end; }
+.treatment-information-section { padding: 24px 26px; background: linear-gradient(145deg, var(--surface, #fff), color-mix(in srgb, var(--soft) 20%, var(--surface, #fff))); }
+.treatment-information-section .section-heading { margin-bottom: 18px; }
+.treatment-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 24px; align-items: start; }
+.treatment-fields > * { min-width: 0; }
+.treatment-fields > :nth-child(1) { grid-column: 1; grid-row: 1; }
+.treatment-fields > :nth-child(2) { grid-column: 2; grid-row: 1; }
+.treatment-fields > :nth-child(3) { grid-column: 1 / -1; grid-row: 2; }
+.treatment-fields > :nth-child(4) { grid-column: 1 / -1; grid-row: 3; }
+.treatment-fields > :nth-child(5) { grid-column: 1; grid-row: 4; }
+.treatment-fields > :nth-child(6) { grid-column: 2; grid-row: 4; }
 .instructions-field { grid-column: 1 / -1; }
-.instructions-help { grid-column: 1 / -1; margin-top: -14px; color: var(--muted); font-size: .875rem; }
-.notes-field { display: flex; gap: 10px; align-items: end; min-width: 0; }
+.instructions-help { grid-column: 1 / -1; margin: -8px 0 0; padding-inline: 2px; color: var(--muted); font-size: .875rem; line-height: 1.45; }
+.notes-field { display: flex; gap: 12px; align-items: end; min-width: 0; }
 .notes-field > :first-child { min-width: 0; flex: 1; }
 .notes-field > button { flex-shrink: 0; min-height: 44px; }
 .page-error { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; padding: 16px; margin-bottom: 18px; border-radius: 11px; background: var(--soft); color: var(--teal); }
@@ -532,6 +589,6 @@ await loadOptions()
 .stock-warning { display: grid; gap: 18px; }
 .stock-warning p { margin: 0; color: var(--muted); line-height: 1.9; }
 .stock-warning > div { display: flex; flex-wrap: wrap; gap: 10px; }
-@media (max-width: 760px) { .patient-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); } .patient-search-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); } .treatment-fields { grid-template-columns: minmax(0, 1fr); } .notes-field { flex-wrap: wrap; }.notes-field > :first-child { flex-basis: 100%; } .prescription-table { display: block; min-width: 0; } .prescription-table thead { display: none; } .prescription-table tbody { display: grid; gap: 12px; } .prescription-table tr { display: grid; gap: 10px; padding: 14px; border: 1px solid var(--line); border-radius: 12px; } .prescription-table td { display: grid; grid-template-columns: minmax(0, 1fr); gap: 5px; min-width: 0; padding: 0; border: 0; } .prescription-table td::before { content: attr(data-label); color: var(--muted); font-size: .875rem; } .prescription-table td:last-child { justify-items: start; } }
+@media (max-width: 760px) { .patient-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); } .patient-search-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); } .treatment-information-section { padding: 20px 18px; } .treatment-information-section .section-heading { margin-bottom: 16px; } .treatment-fields { grid-template-columns: minmax(0, 1fr); gap: 14px; } .treatment-fields > :nth-child(n) { grid-column: 1; grid-row: auto; max-width: none; } .notes-field { flex-wrap: wrap; gap: 8px; }.notes-field > :first-child { flex-basis: 100%; } .instructions-help { margin-top: -8px; } .prescription-table { display: block; min-width: 0; } .prescription-table thead { display: none; } .prescription-table tbody { display: grid; gap: 12px; } .prescription-table tr { display: grid; gap: 10px; padding: 14px; border: 1px solid var(--line); border-radius: 12px; } .prescription-table td { display: grid; grid-template-columns: minmax(0, 1fr); gap: 5px; min-width: 0; padding: 0; border: 0; } .prescription-table td::before { content: attr(data-label); color: var(--muted); font-size: .875rem; } .prescription-table td:last-child { justify-items: start; } }
 @media (max-width: 600px) { .form-section { padding: 18px 16px; }.page-heading > a { width: 100%; justify-content: center; }.patient-fields, .patient-search-filters { grid-template-columns: minmax(0, 1fr); }.patient-toolbar-actions, .patient-toolbar-actions > button, .patient-search-filters > button { width: 100%; justify-content: center; }.form-actions > button { flex: 1; justify-content: center; } }
 </style>

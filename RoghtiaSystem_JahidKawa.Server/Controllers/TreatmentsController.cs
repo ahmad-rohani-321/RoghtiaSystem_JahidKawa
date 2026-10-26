@@ -114,6 +114,7 @@ namespace RoghtiaSystem_JahidKawa.Server.Controllers
             var treatment = await OwnedTreatments.AsNoTracking().AsSplitQuery()
                 .Include(t => t.Patient).Include(t => t.PrescriptionItems).Include(t => t.ClinicalNotes).ThenInclude(l => l.ClinicalNote)
                 .Include(t => t.AdditionalInstructionItems).ThenInclude(link => link.AdditionalInstruction)
+                .Include(t => t.DiagnosticInvestigations).ThenInclude(link => link.DiagnosticInvestigation)
                 .SingleOrDefaultAsync(t => t.Id == id, cancellationToken);
             return treatment == null ? NotFound(new AuthError("NOT_FOUND", "Treatment not found.")) : Ok(ToResponse(treatment));
         }
@@ -136,6 +137,8 @@ namespace RoghtiaSystem_JahidKawa.Server.Controllers
             if (error != null) return error;
             var instructionError = await ValidateInstructionReferences(request, cancellationToken);
             if (instructionError != null) return instructionError;
+            var diagnosticError = await ValidateDiagnosticInvestigationReferences(request, cancellationToken);
+            if (diagnosticError != null) return diagnosticError;
             var (stockError, deductedMedicationIds) = await ApplyStockChanges(request, [], cancellationToken);
             if (stockError != null) return stockError;
             var treatment = new Treatment { UserId = LoggedInUserId, PatientId = request.PatientId!.Value,
@@ -158,12 +161,15 @@ namespace RoghtiaSystem_JahidKawa.Server.Controllers
         {
             var treatment = await OwnedTreatments.Include(t => t.PrescriptionItems).Include(t => t.ClinicalNotes)
                 .Include(t => t.AdditionalInstructionItems)
+                .Include(t => t.DiagnosticInvestigations)
                 .SingleOrDefaultAsync(t => t.Id == id, cancellationToken);
             if (treatment == null) return NotFound(new AuthError("NOT_FOUND", "Treatment not found."));
             var (error, medications) = await ValidateReferences(request, cancellationToken);
             if (error != null) return error;
             var instructionError = await ValidateInstructionReferences(request, cancellationToken);
             if (instructionError != null) return instructionError;
+            var diagnosticError = await ValidateDiagnosticInvestigationReferences(request, cancellationToken);
+            if (diagnosticError != null) return diagnosticError;
 
             // Removing old rows before inserting their replacements avoids the unique position index.
             // Both saves are in one transaction, so an invalid replacement never erases a prescription.
@@ -174,10 +180,12 @@ namespace RoghtiaSystem_JahidKawa.Server.Controllers
             context.PrescriptionItems.RemoveRange(treatment.PrescriptionItems);
             context.TreatmentClinicalNotes.RemoveRange(treatment.ClinicalNotes);
             context.TreatmentAdditionalInstructions.RemoveRange(treatment.AdditionalInstructionItems);
+            context.TreatmentDiagnosticInvestigations.RemoveRange(treatment.DiagnosticInvestigations);
             await context.SaveChangesAsync(cancellationToken);
             treatment.PrescriptionItems.Clear();
             treatment.ClinicalNotes.Clear();
             treatment.AdditionalInstructionItems.Clear();
+            treatment.DiagnosticInvestigations.Clear();
             treatment.PatientId = request.PatientId!.Value;
             treatment.BloodPressure = request.BloodPressure?.Trim() ?? "120/80";
             treatment.AdditionalInstructions = request.AdditionalInstructions?.Trim() ?? string.Empty;
@@ -219,6 +227,9 @@ namespace RoghtiaSystem_JahidKawa.Server.Controllers
                 AdditionalInstructions = request.AdditionalInstructions?.Trim() ?? string.Empty,
                 ClinicalNoteIds = request.ClinicalNoteIds!,
                 AdditionalInstructionIds = request.AdditionalInstructionIds!,
+                DiagnosticIds = request.DiagnosticIds ?? [],
+                InvestigationIds = request.InvestigationIds ?? [],
+                DiagnosticInvestigationIds = GetDiagnosticInvestigationIds(request),
                 PrescriptionItems = request.PrescriptionItems!.Select(item => new TreatmentTemplateItem(
                     item.MedicationId!.Value, item.Dose!.Value, item.Frequency!, item.Duration!.Trim())).ToList()
             };
@@ -238,8 +249,14 @@ namespace RoghtiaSystem_JahidKawa.Server.Controllers
         private static TreatmentTemplateResponse ToTemplateResponse(TreatmentTemplate template)
         {
             var data = JsonSerializer.Deserialize<TreatmentTemplateData>(template.DataJson) ?? new TreatmentTemplateData();
+            var hasSplitData = data.DiagnosticIds.Count > 0 || data.InvestigationIds.Count > 0;
+            var diagnostics = hasSplitData ? data.DiagnosticIds : data.DiagnosticInvestigationIds;
+            var allDiagnosticInvestigations = hasSplitData
+                ? data.DiagnosticIds.Concat(data.InvestigationIds).ToList()
+                : data.DiagnosticInvestigationIds;
             return new TreatmentTemplateResponse(template.Id, template.Name, data.BloodPressure, data.AdditionalInstructions,
-                data.ClinicalNoteIds, data.AdditionalInstructionIds, data.PrescriptionItems);
+                data.ClinicalNoteIds, data.AdditionalInstructionIds, diagnostics, data.InvestigationIds,
+                allDiagnosticInvestigations, data.PrescriptionItems);
         }
 
         private async Task<(IActionResult? Error, Dictionary<int, Medication> Medications)> ValidateReferences(
@@ -271,6 +288,39 @@ namespace RoghtiaSystem_JahidKawa.Server.Controllers
             var count = await context.AdditionalInstructions.AsNoTracking()
                 .CountAsync(item => item.UserId == LoggedInUserId && ids.Contains(item.Id), cancellationToken);
             return count == ids.Count ? null : BadRequest(new AuthError("VALIDATION_ERROR", "Invalid additional instructions."));
+        }
+
+        private async Task<IActionResult?> ValidateDiagnosticInvestigationReferences(TreatmentRequest request, CancellationToken cancellationToken)
+        {
+            var diagnosticIds = GetDiagnosticIds(request);
+            var investigationIds = request.InvestigationIds ?? [];
+            var allIds = diagnosticIds.Concat(investigationIds).ToList();
+            if (allIds.Count > 20 || allIds.Any(id => id < 1) || allIds.Distinct().Count() != allIds.Count)
+                return BadRequest(new AuthError("VALIDATION_ERROR", "Invalid diagnostics and investigations."));
+            var diagnostics = await context.DiagnosticInvestigations.AsNoTracking()
+                .CountAsync(item => item.UserId == LoggedInUserId && item.Kind == "Diagnostic" && diagnosticIds.Contains(item.Id), cancellationToken);
+            var investigations = await context.DiagnosticInvestigations.AsNoTracking()
+                .CountAsync(item => item.UserId == LoggedInUserId && item.Kind == "Investigation" && investigationIds.Contains(item.Id), cancellationToken);
+            return diagnostics == diagnosticIds.Count && investigations == investigationIds.Count
+                ? null : BadRequest(new AuthError("VALIDATION_ERROR", "Invalid diagnostics and investigations."));
+        }
+
+        private static List<int> GetDiagnosticIds(TreatmentRequest request)
+        {
+            var diagnosticIds = request.DiagnosticIds ?? [];
+            var investigationIds = request.InvestigationIds ?? [];
+            if (diagnosticIds.Count == 0 && investigationIds.Count == 0 && request.DiagnosticInvestigationIds is not null)
+                return request.DiagnosticInvestigationIds;
+            return diagnosticIds;
+        }
+
+        private static List<int> GetDiagnosticInvestigationIds(TreatmentRequest request)
+        {
+            var diagnosticIds = request.DiagnosticIds ?? [];
+            var investigationIds = request.InvestigationIds ?? [];
+            if (diagnosticIds.Count == 0 && investigationIds.Count == 0 && request.DiagnosticInvestigationIds is not null)
+                return request.DiagnosticInvestigationIds;
+            return diagnosticIds.Concat(investigationIds).Distinct().ToList();
         }
 
         private async Task<(IActionResult? Error, HashSet<int> DeductedMedicationIds)> ApplyStockChanges(
@@ -318,12 +368,15 @@ namespace RoghtiaSystem_JahidKawa.Server.Controllers
             foreach (var noteId in request.ClinicalNoteIds!) treatment.ClinicalNotes.Add(new TreatmentClinicalNote { ClinicalNoteId = noteId });
             foreach (var instructionId in request.AdditionalInstructionIds!)
                 treatment.AdditionalInstructionItems.Add(new TreatmentAdditionalInstruction { AdditionalInstructionId = instructionId });
+            foreach (var itemId in GetDiagnosticInvestigationIds(request))
+                treatment.DiagnosticInvestigations.Add(new TreatmentDiagnosticInvestigation { DiagnosticInvestigationId = itemId });
         }
 
         private async Task<Treatment> LoadOwned(int id, CancellationToken cancellationToken)
             => await OwnedTreatments.AsNoTracking().AsSplitQuery().Include(t => t.Patient)
                 .Include(t => t.PrescriptionItems).Include(t => t.ClinicalNotes).ThenInclude(l => l.ClinicalNote)
                 .Include(t => t.AdditionalInstructionItems).ThenInclude(link => link.AdditionalInstruction)
+                .Include(t => t.DiagnosticInvestigations).ThenInclude(link => link.DiagnosticInvestigation)
                 .SingleAsync(t => t.Id == id, cancellationToken);
 
         private static TreatmentResponse ToResponse(Treatment treatment) => new(treatment.Id, treatment.RecordedAtUtc,
@@ -333,6 +386,12 @@ namespace RoghtiaSystem_JahidKawa.Server.Controllers
                 .Select(n => new ClinicalNoteResponse(n.ClinicalNoteId, n.ClinicalNote.Text)).ToList(),
             treatment.AdditionalInstructionItems.OrderBy(item => item.AdditionalInstructionId)
                 .Select(item => new AdditionalInstructionResponse(item.AdditionalInstructionId, item.AdditionalInstruction.Text)).ToList(),
+            treatment.DiagnosticInvestigations.OrderBy(item => item.DiagnosticInvestigationId)
+                .Select(item => new DiagnosticInvestigationResponse(item.DiagnosticInvestigationId, item.DiagnosticInvestigation.Text, item.DiagnosticInvestigation.Kind)).ToList(),
+            treatment.DiagnosticInvestigations.Where(item => item.DiagnosticInvestigation.Kind == "Diagnostic").OrderBy(item => item.DiagnosticInvestigationId)
+                .Select(item => new DiagnosticInvestigationResponse(item.DiagnosticInvestigationId, item.DiagnosticInvestigation.Text, item.DiagnosticInvestigation.Kind)).ToList(),
+            treatment.DiagnosticInvestigations.Where(item => item.DiagnosticInvestigation.Kind == "Investigation").OrderBy(item => item.DiagnosticInvestigationId)
+                .Select(item => new DiagnosticInvestigationResponse(item.DiagnosticInvestigationId, item.DiagnosticInvestigation.Text, item.DiagnosticInvestigation.Kind)).ToList(),
             treatment.PrescriptionItems.OrderBy(i => i.Position).Select(i => new PrescriptionItemResponse(i.Id, i.Position,
                 i.MedicationId, i.MedicationName, i.MedicationType, i.Dose, i.Frequency, i.Duration)).ToList());
     }
