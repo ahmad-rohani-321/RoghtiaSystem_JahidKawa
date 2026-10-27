@@ -1,0 +1,1 @@
+import{b as e,mt as t,xt as n}from"./CHG8xG6n.js";import{t as r}from"./BDNMzG2s.js";var i={},a={class:`print-layout`};function o(r,i){return t(),e(`main`,a,[n(r.$slots,`default`,{},void 0,!0)])}var s=r(i,[[`render`,o],[`__scopeId`,`data-v-3eb1498a`]]);export{s as default};

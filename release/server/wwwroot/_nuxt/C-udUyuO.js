@@ -1,0 +1,1 @@
+import{mt as e,v as t}from"./CHG8xG6n.js";import{n}from"./CG4kDcm4.js";import{t as r}from"./PlqhQ0xa.js";var i={__name:`prescriptions`,setup(i){return n({title:`Prescriptions — E-Roghtia`}),(n,i)=>{let a=r;return e(),t(a,{"prescriptions-only":``})}}};export{i as default};

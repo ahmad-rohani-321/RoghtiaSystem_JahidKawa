@@ -1,0 +1,18 @@
+{
+  "id": "/",
+  "name": "E-Roghtia Healthcare Management",
+  "short_name": "E-Roghtia",
+  "description": "Patient care and healthcare management",
+  "lang": "en",
+  "start_url": "/login",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#f4f8f8",
+  "theme_color": "#0d9488",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
