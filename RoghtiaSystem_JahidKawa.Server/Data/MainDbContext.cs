@@ -58,6 +58,8 @@ namespace RoghtiaSystem_JahidKawa.Server.Data
                 doctor.Property(d => d.HospitalNamePashto).IsRequired().HasMaxLength(200);
                 doctor.Property(d => d.HospitalAddress).IsRequired().HasMaxLength(300);
                 doctor.Property(d => d.HospitalPhoneNumbers).IsRequired().HasMaxLength(300);
+                doctor.Property(d => d.PrintOnA5).HasDefaultValue(false);
+                doctor.Property(d => d.PrintGrayscale).HasDefaultValue(false);
             });
             modelBuilder.Entity<Medication>(medication =>
             {

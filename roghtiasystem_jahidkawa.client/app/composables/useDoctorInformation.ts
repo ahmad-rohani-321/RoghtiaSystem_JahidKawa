@@ -28,6 +28,15 @@ export function useDoctorInformation() {
     return value
   }
 
+  async function savePrintPreferences(preferences: { printOnA5: boolean, printGrayscale: boolean }) {
+    const value = await $fetch<DoctorInformation>('/api/doctor-information/print-preferences', {
+      method: 'PUT', body: preferences,
+      headers: { 'x-roghtia-request': '1' }, retry: 0
+    })
+    accept(value)
+    return value
+  }
+
   async function reset() {
     const value = await $fetch<DoctorInformation>('/api/doctor-information/reset', {
       method: 'POST', headers: { 'x-roghtia-request': '1' }, retry: 0
@@ -36,5 +45,5 @@ export function useDoctorInformation() {
     return value
   }
 
-  return { information, load, save, reset }
+  return { information, load, save, savePrintPreferences, reset }
 }

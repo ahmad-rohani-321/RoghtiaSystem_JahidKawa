@@ -12,6 +12,8 @@ namespace RoghtiaSystem_JahidKawa.Server.Data.Models
         public string HospitalNamePashto { get; set; } = string.Empty;
         public string HospitalAddress { get; set; } = string.Empty;
         public string HospitalPhoneNumbers { get; set; } = string.Empty;
+        public bool PrintOnA5 { get; set; }
+        public bool PrintGrayscale { get; set; }
         public int LoggedInUserId { get; set; }
     }
 }

@@ -1,0 +1,30 @@
+E-Roghtia — Windows 11, single-computer installation
+
+1. Extract this ZIP to a permanent folder, for example:
+   C:\Users\YourName\AppData\Local\E-Roghtia
+   Do not run the application from inside the ZIP or a temporary Downloads folder.
+
+2. Install the Microsoft .NET 10 ASP.NET Core Runtime (x64) if it is not already installed:
+   https://dotnet.microsoft.com/download/dotnet/10.0
+   Node.js is bundled in this package.
+
+3. Double-click Setup E-Roghtia.cmd once. It creates the local data folder, generates
+   production secrets for this Windows account, and registers E-Roghtia to start in the
+   background whenever this account signs in to Windows. No administrator rights are needed.
+
+4. Double-click Start E-Roghtia.cmd to start it now and open:
+   http://localhost:43127/login
+   Create the first account at /register.
+
+5. Double-click Stop E-Roghtia.cmd to stop the local services. They will start again at
+   the next Windows sign-in. The app runs only on this computer at 127.0.0.1.
+
+Your database and logs are in Data. The database password and signing key are stored in
+this Windows account's environment settings. Back up Data\E-Roghtia.db and keep the
+database password safe. Preserve App\server\.local\framework-keys on this same computer;
+it protects application data-encryption keys.
+
+To update an existing installation, first stop E-Roghtia and back up Data and
+App\server\.local\framework-keys. Replace the App folder with the new package's App
+folder, keep the existing Data folder and framework-keys, then run Setup E-Roghtia.cmd
+again. It preserves existing secrets and refreshes the automatic-start task.

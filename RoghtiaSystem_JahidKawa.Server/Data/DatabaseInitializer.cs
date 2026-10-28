@@ -81,6 +81,8 @@ namespace RoghtiaSystem_JahidKawa.Server.Data
                         HospitalNamePashto TEXT NOT NULL,
                         HospitalAddress TEXT NOT NULL DEFAULT '',
                         HospitalPhoneNumbers TEXT NOT NULL DEFAULT '',
+                        PrintOnA5 INTEGER NOT NULL DEFAULT 0,
+                        PrintGrayscale INTEGER NOT NULL DEFAULT 0,
                         FOREIGN KEY (LoggedInUserId) REFERENCES Users (Id) ON DELETE CASCADE
                     )
                     """);
@@ -94,6 +96,8 @@ namespace RoghtiaSystem_JahidKawa.Server.Data
                 }
                 if (!doctorColumns.Contains("HospitalAddress")) await ExecuteAsync(connection, transaction, "ALTER TABLE DoctorInformation ADD COLUMN HospitalAddress TEXT NOT NULL DEFAULT ''");
                 if (!doctorColumns.Contains("HospitalPhoneNumbers")) await ExecuteAsync(connection, transaction, "ALTER TABLE DoctorInformation ADD COLUMN HospitalPhoneNumbers TEXT NOT NULL DEFAULT ''");
+                if (!doctorColumns.Contains("PrintOnA5")) await ExecuteAsync(connection, transaction, "ALTER TABLE DoctorInformation ADD COLUMN PrintOnA5 INTEGER NOT NULL DEFAULT 0");
+                if (!doctorColumns.Contains("PrintGrayscale")) await ExecuteAsync(connection, transaction, "ALTER TABLE DoctorInformation ADD COLUMN PrintGrayscale INTEGER NOT NULL DEFAULT 0");
                 await ExecuteAsync(connection, transaction, """
                     CREATE TABLE IF NOT EXISTS Medications (
                         Id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,

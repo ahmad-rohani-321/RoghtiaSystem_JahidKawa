@@ -10,6 +10,7 @@ const patientsApi = usePatients()
 const medicationsApi = useMedications()
 const treatmentsApi = useTreatments()
 const auth = useAuth()
+const doctorInformation = useDoctorInformation()
 const toast = useToast()
 const selectedPatient = ref<Patient | null>(null)
 const patientCode = ref('')
@@ -65,6 +66,7 @@ let rowKey = 1
 let patientRequest = 0
 let patientLookupRequest = 0
 let patientLookupTask: Promise<boolean> | null = null
+let printPreferencesSaveTask: Promise<void> = Promise.resolve()
 const medicationOptions = computed(() => medications.value.map(medication => ({ id: medication.id, label: `${medication.name} · ${localNumber(medication.quantity)}` })))
 const medicationMap = computed(() => new Map(medications.value.map(medication => [medication.id, medication])))
 const frequencyOptions = prescriptionFrequencies.map(value => ({ label: prescriptionFrequencyCodes[value] ? `${prescriptionFrequencyCodes[value]} · ${value}` : value, value }))
@@ -263,7 +265,9 @@ async function loadOptions() {
   templateLoadMessage.value = ''
   templatesReady.value = false
   try {
-    const [first, clinicalNotes, savedInstructions, savedDiagnostics, savedInvestigations] = await Promise.all([medicationsApi.list({ page: 1, pageSize: 100 }), treatmentsApi.clinicalNotes(), treatmentsApi.additionalInstructions(), treatmentsApi.diagnosticsAndInvestigations('Diagnostic'), treatmentsApi.diagnosticsAndInvestigations('Investigation')])
+    const [first, clinicalNotes, savedInstructions, savedDiagnostics, savedInvestigations, doctorInfo] = await Promise.all([medicationsApi.list({ page: 1, pageSize: 100 }), treatmentsApi.clinicalNotes(), treatmentsApi.additionalInstructions(), treatmentsApi.diagnosticsAndInvestigations('Diagnostic'), treatmentsApi.diagnosticsAndInvestigations('Investigation'), doctorInformation.load().catch(() => null)])
+    printAsA5.value = !!doctorInfo?.printOnA5
+    printGrayscale.value = !!doctorInfo?.printGrayscale
     const all = [...first.items]
     const totalPages = Math.ceil(first.total / 100)
     for (let page = 2; page <= totalPages; page++) {
@@ -404,6 +408,7 @@ async function save(printAfter = false, allowInsufficientStock = false) {
   }
   pending.value = true
   try {
+    await printPreferencesSaveTask
     if (!selectedPatient.value && newPatient) {
       const created = await patientsApi.create(newPatient)
       populatePatient(created)
@@ -444,6 +449,16 @@ async function save(printAfter = false, allowInsufficientStock = false) {
 }
 
 watch(() => auth.user.value?.id, () => { clearPatient(); ++patientRequest; patientModalOpen.value = false; insufficientStockOpen.value = false; patientResults.value = { items: [], total: 0, page: 1, pageSize: 10 }; medications.value = []; notes.value = []; selectedNoteIds.value = []; instructionOptions.value = []; selectedInstructionIds.value = []; diagnosticOptions.value = []; selectedDiagnosticIds.value = []; investigationOptions.value = []; selectedInvestigationIds.value = []; treatmentTemplates.value = []; selectedTemplateId.value = null; saveAsTemplate.value = false; newTemplateName.value = ''; bloodPressure.value = '120/80'; legacyAdditionalInstructions.value = ''; rows.value = [{ key: ++rowKey, medicationId: null, dose: 1, frequency: 'Once daily', duration: '' }]; void loadOptions() })
+watch([printAsA5, printGrayscale], ([printOnA5, printGrayscaleValue]) => {
+  if (!ready.value) return
+  printPreferencesSaveTask = printPreferencesSaveTask.then(async () => {
+    try {
+      await doctorInformation.savePrintPreferences({ printOnA5, printGrayscale: printGrayscaleValue })
+    } catch {
+      toast.add({ title: 'Print preferences not saved', description: 'Your prescription was not saved as a default. Please try again.', color: 'error' })
+    }
+  })
+})
 onBeforeUnmount(() => { ++patientRequest; ++patientLookupRequest })
 await loadOptions()
 </script>

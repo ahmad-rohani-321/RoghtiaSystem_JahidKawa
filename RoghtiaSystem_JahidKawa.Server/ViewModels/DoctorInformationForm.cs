@@ -18,6 +18,8 @@ namespace RoghtiaSystem_JahidKawa.Server.ViewModels
         public string? HospitalAddress { get; set; }
         [StringLength(300)]
         public string? HospitalPhoneNumbers { get; set; }
+        public bool? PrintOnA5 { get; set; }
+        public bool? PrintGrayscale { get; set; }
         public IFormFile? DoctorPhoto { get; set; }
         public IFormFile? DoctorLogo { get; set; }
         public IFormFile? HospitalLogo { get; set; }
@@ -37,6 +39,16 @@ namespace RoghtiaSystem_JahidKawa.Server.ViewModels
         string HospitalNamePashto,
         string HospitalAddress,
         string HospitalPhoneNumbers,
+        bool PrintOnA5,
+        bool PrintGrayscale,
         int LoggedInUserId,
         bool Exists);
+
+    public class PrescriptionPrintPreferencesRequest
+    {
+        [Required]
+        public bool? PrintOnA5 { get; set; }
+        [Required]
+        public bool? PrintGrayscale { get; set; }
+    }
 }

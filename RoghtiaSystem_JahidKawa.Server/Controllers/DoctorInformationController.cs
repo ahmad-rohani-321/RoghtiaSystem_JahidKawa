@@ -80,6 +80,8 @@ namespace RoghtiaSystem_JahidKawa.Server.Controllers
             doctor.HospitalNamePashto = form.HospitalNamePashto?.Trim() ?? string.Empty;
             doctor.HospitalAddress = form.HospitalAddress?.Trim() ?? string.Empty;
             doctor.HospitalPhoneNumbers = form.HospitalPhoneNumbers?.Trim() ?? string.Empty;
+            doctor.PrintOnA5 = form.PrintOnA5 ?? doctor.PrintOnA5;
+            doctor.PrintGrayscale = form.PrintGrayscale ?? doctor.PrintGrayscale;
             doctor.DoctorPhoto = form.RemoveDoctorPhoto ? null : doctorPhoto ?? doctor.DoctorPhoto;
             doctor.DoctorLogo = form.RemoveDoctorLogo ? null : doctorLogo ?? doctor.DoctorLogo;
             doctor.HospitalLogo = form.RemoveHospitalLogo ? null : hospitalLogo ?? doctor.HospitalLogo;
@@ -94,6 +96,23 @@ namespace RoghtiaSystem_JahidKawa.Server.Controllers
             {
                 return NotFound(new AuthError("NOT_FOUND", "Your information has changed. Please refresh the page."));
             }
+            return Ok(ToResponse(doctor));
+        }
+
+        [HttpPut("print-preferences")]
+        [Consumes("application/json")]
+        [RequestSizeLimit(4 * 1024)]
+        public async Task<IActionResult> UpdatePrintPreferences([FromBody] PrescriptionPrintPreferencesRequest request, CancellationToken cancellationToken)
+        {
+            var doctor = await context.DoctorInformation.SingleOrDefaultAsync(d => d.LoggedInUserId == LoggedInUserId, cancellationToken);
+            if (doctor == null)
+            {
+                doctor = new DoctorInformation { LoggedInUserId = LoggedInUserId };
+                context.DoctorInformation.Add(doctor);
+            }
+            doctor.PrintOnA5 = request.PrintOnA5!.Value;
+            doctor.PrintGrayscale = request.PrintGrayscale!.Value;
+            await context.SaveChangesAsync(cancellationToken);
             return Ok(ToResponse(doctor));
         }
 
@@ -142,6 +161,8 @@ namespace RoghtiaSystem_JahidKawa.Server.Controllers
             doctor?.HospitalNamePashto ?? string.Empty,
             doctor?.HospitalAddress ?? string.Empty,
             doctor?.HospitalPhoneNumbers ?? string.Empty,
+            doctor?.PrintOnA5 ?? false,
+            doctor?.PrintGrayscale ?? false,
             LoggedInUserId,
             doctor != null);
 

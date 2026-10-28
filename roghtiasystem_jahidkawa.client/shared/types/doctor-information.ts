@@ -9,6 +9,8 @@ export interface DoctorInformation {
   hospitalNamePashto: string
   hospitalAddress: string
   hospitalPhoneNumbers: string
+  printOnA5: boolean
+  printGrayscale: boolean
   loggedInUserId: number
   exists: boolean
 }

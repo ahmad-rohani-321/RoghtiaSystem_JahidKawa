@@ -139,6 +139,16 @@ namespace RoghtiaSystem_JahidKawa.Server.Migrations
                         .HasMaxLength(300)
                         .HasColumnType("TEXT");
 
+                    b.Property<bool>("PrintGrayscale")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(false);
+
+                    b.Property<bool>("PrintOnA5")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(false);
+
                     b.HasKey("LoggedInUserId");
 
                     b.ToTable("DoctorInformation");

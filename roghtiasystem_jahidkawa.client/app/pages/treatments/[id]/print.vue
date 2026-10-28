@@ -15,6 +15,9 @@ const requestPending = ref(false)
 const printPending = ref(false)
 const printAsA5 = ref(route.query.a5 === '1')
 const printGrayscale = ref(route.query.grayscale === '1')
+const printPreferencesReady = ref(false)
+const toast = useToast()
+let printPreferencesSaveTask: Promise<void> = Promise.resolve()
 
 const info = computed(() => doctor.information.value)
 const doctorName = computed(() => info.value?.doctorNameEnglish || auth.user.value?.userName || 'Doctor')
@@ -51,8 +54,9 @@ const investigationsText = computed(() => treatment.value?.investigations
 async function printDocument() {
   if (!treatment.value || loading.value || loadError.value || printPending.value) return
   printPending.value = true
+  await printPreferencesSaveTask
   const pageStyle = document.createElement('style')
-  pageStyle.textContent = `@media print { @page { size: ${printAsA5.value ? 'A5' : 'A4'} portrait; margin: 10mm; } }`
+  pageStyle.textContent = `@media print { @page { size: ${printAsA5.value ? 'A5' : 'A4'} portrait; margin: 0; } }`
   document.head.append(pageStyle)
   try {
     await nextTick()
@@ -73,7 +77,12 @@ async function loadTreatment() {
   loadError.value = ''
   try {
     treatment.value = await api.get(id)
-    try { await doctor.load() } catch { /* The prescription remains printable without optional branding. */ }
+    try {
+      const savedPreferences = await doctor.load(true)
+      if (route.query.a5 === undefined) printAsA5.value = !!savedPreferences?.printOnA5
+      if (route.query.grayscale === undefined) printGrayscale.value = !!savedPreferences?.printGrayscale
+    } catch { /* The prescription remains printable without optional branding or saved preferences. */ }
+    printPreferencesReady.value = true
   } catch (error: unknown) {
     const failure = error as { statusCode?: number, status?: number }
     const status = failure.statusCode || failure.status
@@ -93,6 +102,17 @@ async function loadTreatment() {
     await printDocument()
   }
 }
+
+watch([printAsA5, printGrayscale], ([printOnA5, printGrayscaleValue]) => {
+  if (!printPreferencesReady.value) return
+  printPreferencesSaveTask = printPreferencesSaveTask.then(async () => {
+    try {
+      await doctor.savePrintPreferences({ printOnA5, printGrayscale: printGrayscaleValue })
+    } catch {
+      toast.add({ title: 'Print preferences not saved', description: 'Please try again.', color: 'error' })
+    }
+  })
+})
 
 useHead({ title: `Prescription ${prescriptionNumber.value} — E-Roghtia` })
 
@@ -214,15 +234,15 @@ onMounted(loadTreatment)
 .print-sheet-grayscale { filter: grayscale(100%); }
 @media (max-width: 700px) { .print-sheet { padding: 20px 14px 55px; min-height: 0; gap: 18px; font-size: 12px; }.sheet-header { grid-template-columns: minmax(0, 1fr) 38px minmax(0, 1fr); gap: 8px; min-height: 70px; padding-bottom: 8px; }.hospital-logo { width: 75px; height: 34px; }.doctor-logo-frame { width: 34px; height: 42px; }.doctor-brand h2, .doctor-brand-ps .hospital-name, .doctor-brand-ps .doctor-name-ps { font-size: 10px; }.doctor-brand p { font-size: 8px; }.doctor-watermark { width: min(70vw, 100mm); height: min(70vw, 100mm); }.patient-grid { gap: 8px; }.patient-grid > dl + dl { padding-inline-start: 8px; }.patient-grid dl div { grid-template-columns: 70px minmax(0, 1fr); }.rx-mark { font-size: 38px; }.rx-mark sub { font-size: 18px; }.rx-title h2 { font-size: 22px; }.prescription-section { overflow-x: auto; }.prescription-section table { min-width: 480px; }.prescription-notes-grid { grid-template-columns: minmax(0, 1fr); gap: 10px; }.sheet-footer { margin-top: 25px; }.hospital-footer { font-size: 10px; }.green-wave { height: 35px; bottom: -12px; } }
 @media print {
-  @page { size: A4 portrait; margin: 10mm; }
+  @page { size: A4 portrait; margin: 0; }
   :global(html), :global(body), :global(#__nuxt) { display: block !important; width: auto !important; min-height: 0 !important; margin: 0 !important; padding: 0 !important; overflow: visible !important; background: #fff !important; }
   :global(.print-layout), .print-page { display: block !important; visibility: visible !important; width: auto !important; max-width: none !important; min-height: 0 !important; margin: 0 !important; padding: 0 !important; overflow: visible !important; background: #fff !important; }
   .print-toolbar { display: none !important; }
   .print-sheet, .print-sheet * { visibility: visible !important; }
-  .print-sheet { display: flex !important; position: relative; width: 100%; min-height: 277mm; margin-inline: auto; padding: 1mm 0 6mm; gap: 12px; overflow: visible; box-shadow: none; font-size: 9.5pt; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
-  :global(.print-layout:has(.print-sheet-a5)) { width: 100% !important; margin-inline: auto !important; }
-  .print-page-a5 { width: 100% !important; }
-  .print-page-a5 .print-sheet { width: 100%; min-height: 190mm; padding: 1mm 0 6mm; gap: 7px; font-size: 8pt; }
+  .print-sheet { display: flex !important; position: relative; width: 210mm; min-height: 297mm; margin-inline: auto; padding: 11mm 10mm 16mm; gap: 12px; overflow: visible; box-shadow: none; font-size: 9.5pt; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  :global(.print-layout:has(.print-sheet-a5)) { width: 148mm !important; margin-inline: auto !important; }
+  .print-page-a5 { width: 148mm !important; }
+  .print-page-a5 .print-sheet { width: 148mm; min-height: 210mm; padding: 7mm 7mm 12mm; gap: 7px; font-size: 8pt; }
   .print-sheet-grayscale { filter: grayscale(100%) !important; }
   .sheet-header, .patient-box, .rx-heading, .notes-box, .instructions-box, .sheet-footer { break-inside: avoid; }
   .prescription-notes-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3mm; }

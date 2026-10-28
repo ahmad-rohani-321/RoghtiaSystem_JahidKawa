@@ -112,6 +112,8 @@ async function save() {
   try {
     const body = new FormData()
     for (const field of fields) body.set(field.name, form[field.name].trim())
+    body.set('printOnA5', String(profile.information.value?.printOnA5 ?? false))
+    body.set('printGrayscale', String(profile.information.value?.printGrayscale ?? false))
     for (const field of imageFields) {
       const image = images[field.name]
       if (image.file) body.set(field.name, image.file)
