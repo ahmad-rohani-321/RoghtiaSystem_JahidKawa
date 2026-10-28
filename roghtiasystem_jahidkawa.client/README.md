@@ -95,9 +95,9 @@ It moves `.local`, `RoghtiaSystemDatabase.db`, and related SQLite journal files 
 
 ## Pages and design
 
-Dashboard, Prescriptions, Patients, Medications, Reports and Settings use the shared RTL navigation. Login, Register and Reset Password remain standalone. Login adds Remember Me; registration collects username, password and recovery PIN.
+Dashboard, Patients, Treatments, Medications, Reports and Settings use the shared navigation. Prescriptions are printed from treatment records. Login, Register and Reset Password remain standalone. Login adds Remember Me; registration collects username, password and recovery PIN.
 
-The dashboard uses synthetic data. Clinical records, clinical APIs and audit trails remain future work. Calendar calculations remain Jalali, with exact Pashto month names and compact Persian weekday labels. Both light/dark modes and responsive typography are retained.
+The dashboard uses synthetic data. Clinical records, clinical APIs and audit trails remain future work. Date pickers and date/time displays use the Gregorian calendar in Kabul local time with English month and weekday names and Latin numerals. Both light/dark modes and responsive typography are retained.
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for the file structure.
 

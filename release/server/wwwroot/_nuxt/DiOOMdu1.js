@@ -1,1 +1,0 @@
-import{mt as e,v as t}from"./CHG8xG6n.js";import{n}from"./CG4kDcm4.js";import{t as r}from"./B5XPl-K7.js";import{t as i}from"./DHnTxCWm.js";var a={__name:`register`,setup(a){return i({layout:!1}),n({title:`Create account — E-Roghtia`}),(n,i)=>{let a=r;return e(),t(a,{mode:`register`})}}};export{a as default};

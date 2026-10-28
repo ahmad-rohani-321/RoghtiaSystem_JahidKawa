@@ -38,15 +38,23 @@ namespace RoghtiaSystem_JahidKawa.Server.Controllers
 
             var now = DateTime.UtcNow;
             var todayInKabul = (now + KabulOffset).Date;
-            var from = query.FromUtc ?? todayInKabul - KabulOffset;
-            var to = query.ToUtc ?? from.AddDays(1);
-            var treatments = OwnedTreatments.AsNoTracking().Where(t => t.RecordedAtUtc >= from && t.RecordedAtUtc < to);
+            var treatments = OwnedTreatments.AsNoTracking();
+            if (query.PatientId.HasValue) treatments = treatments.Where(t => t.PatientId == query.PatientId.Value && t.Patient.UserId == LoggedInUserId);
+            if (query.FromUtc.HasValue)
+            {
+                treatments = treatments.Where(t => t.RecordedAtUtc >= query.FromUtc.Value && t.RecordedAtUtc < query.ToUtc!.Value);
+            }
+            else if (!query.PatientId.HasValue)
+            {
+                var from = todayInKabul - KabulOffset;
+                var to = from.AddDays(1);
+                treatments = treatments.Where(t => t.RecordedAtUtc >= from && t.RecordedAtUtc < to);
+            }
             if (!string.IsNullOrWhiteSpace(query.PatientName))
             {
                 var search = query.PatientName.Trim().Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_");
                 treatments = treatments.Where(t => EF.Functions.Like(t.Patient.Name, $"%{search}%", "\\"));
             }
-            if (query.HasPrescription) treatments = treatments.Where(t => t.PrescriptionItems.Any());
             var total = await treatments.CountAsync(cancellationToken);
             var offset = ((long)query.Page - 1) * query.PageSize;
             var items = offset >= total ? [] : await treatments.OrderByDescending(t => t.RecordedAtUtc).ThenByDescending(t => t.Id)

@@ -24,6 +24,7 @@ export function readTreatmentQuery(event: H3Event) {
   }
   const patientName = query.patientName ?? ''
   if (typeof patientName !== 'string' || patientName.length > 200) throw invalid()
+  const patientId = query.patientId === undefined ? undefined : integer(query.patientId, 1, 2147483647)
   const fromUtc = query.fromUtc
   const toUtc = query.toUtc
   if ((fromUtc === undefined) !== (toUtc === undefined)) throw invalid()
@@ -32,12 +33,11 @@ export function readTreatmentQuery(event: H3Event) {
       !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(toUtc) ||
       !Number.isFinite(Date.parse(fromUtc)) || !Number.isFinite(Date.parse(toUtc)) ||
       Date.parse(fromUtc) >= Date.parse(toUtc) || Date.parse(toUtc) - Date.parse(fromUtc) > 32 * 86400000)) throw invalid()
-  if (query.hasPrescription !== undefined && query.hasPrescription !== 'true' && query.hasPrescription !== 'false') throw invalid()
   return {
     page: integer(query.page, 1, 2147483647), pageSize: integer(query.pageSize, 20, 100),
     patientName: patientName.trim(),
-    ...(fromUtc === undefined ? {} : { fromUtc: fromUtc as string, toUtc: toUtc as string }),
-    hasPrescription: query.hasPrescription === 'true'
+    ...(patientId === undefined ? {} : { patientId }),
+    ...(fromUtc === undefined ? {} : { fromUtc: fromUtc as string, toUtc: toUtc as string })
   }
 }
 

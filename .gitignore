@@ -1,0 +1,22 @@
+# .NET build output
+**/bin/
+**/obj/
+
+# Nuxt build output and installed dependencies
+**/.nuxt/
+**/.output/
+**/node_modules/
+**/.cache/
+
+# Local Visual Studio state
+.vs/
+
+# Local application data and secrets
+**/.local/
+**/.roghtia-recovery/
+**/RoghtiaSystemDatabase.db
+**/E-Roghtia.db
+
+# Generated publish staging and local installer packages
+/release/server/
+/release/*.zip

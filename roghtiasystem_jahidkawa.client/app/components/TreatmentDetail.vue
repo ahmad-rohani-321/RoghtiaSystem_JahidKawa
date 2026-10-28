@@ -4,7 +4,7 @@ import type { Treatment } from '#shared/types/treatment'
 const open = defineModel<boolean>('open', { default: false })
 const props = defineProps<{ treatment: Treatment | null }>()
 const genders: Record<string, string> = { Male: 'Male', Female: 'Female', Other: 'Other' }
-const recordedDate = computed(() => props.treatment ? formatJalaliDateTime(props.treatment.recordedAtUtc) : '')
+const recordedDate = computed(() => props.treatment ? formatDateTime(props.treatment.recordedAtUtc) : '')
 </script>
 
 <template>

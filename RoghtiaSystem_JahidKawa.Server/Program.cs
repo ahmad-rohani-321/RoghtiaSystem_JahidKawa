@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using RoghtiaSystem_JahidKawa.Server.Data;
@@ -49,6 +50,16 @@ try { (authOptions, connectionString) = AuthOptions.Load(builder.Configuration, 
 catch (InvalidOperationException exception)
 {
     Console.Error.WriteLine($"Server startup failed: {exception.Message}");
+    Environment.ExitCode = 1;
+    return;
+}
+try
+{
+    EnsureDatabaseDirectory(connectionString);
+}
+catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException)
+{
+    Console.Error.WriteLine($"Server startup failed: cannot prepare the database location. {exception.Message}");
     Environment.ExitCode = 1;
     return;
 }
@@ -153,4 +164,29 @@ app.UseRateLimiter();
 app.MapControllers();
 app.MapGet("/api/health", () => Results.Ok(new { status = "ok" })).AllowAnonymous();
 app.Run();
+
+static void EnsureDatabaseDirectory(string connectionString)
+{
+    var dataSource = new SqliteConnectionStringBuilder(connectionString).DataSource;
+    if (string.IsNullOrWhiteSpace(dataSource) || dataSource.Equals(":memory:", StringComparison.OrdinalIgnoreCase) || dataSource.StartsWith("file:", StringComparison.OrdinalIgnoreCase))
+        return;
+
+    var fullPath = Path.GetFullPath(dataSource);
+    var directoryPath = Path.GetDirectoryName(fullPath);
+    if (string.IsNullOrWhiteSpace(directoryPath))
+        throw new ArgumentException("The configured SQLite database path has no parent directory.");
+
+    Directory.CreateDirectory(directoryPath);
+
+    // Fail here with the exact database path when this Windows account cannot create or
+    // write the database, rather than failing later with SQLite error 14.
+    try
+    {
+        using var databaseFile = new FileStream(fullPath, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.ReadWrite | FileShare.Delete);
+    }
+    catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+    {
+        throw new IOException($"The configured database file '{fullPath}' is not writable by this Windows account. Check the file and its parent folder permissions.", exception);
+    }
+}
 

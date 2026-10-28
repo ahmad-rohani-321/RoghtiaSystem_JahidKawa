@@ -5,7 +5,6 @@ const open = ref(false)
 let compactQuery: MediaQueryList | undefined
 const items = [
   { to: '/', label: 'Dashboard', compactLabel: 'Home', icon: 'i-lucide-layout-dashboard' },
-  { to: '/prescriptions', label: 'Prescriptions', compactLabel: 'Rx', icon: 'i-lucide-clipboard-plus' },
   { to: '/patients', label: 'Patients', compactLabel: 'Patients', icon: 'i-lucide-users-round' },
   { to: '/treatments', label: 'Treatments', compactLabel: 'Care', icon: 'i-lucide-stethoscope' },
   { to: '/medications', label: 'Medications', compactLabel: 'Meds', icon: 'i-lucide-pill' },

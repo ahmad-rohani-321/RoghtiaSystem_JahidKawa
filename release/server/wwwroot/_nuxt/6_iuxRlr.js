@@ -1,1 +1,0 @@
-import{k as e,mt as t,v as n}from"./CHG8xG6n.js";import{n as r}from"./CG4kDcm4.js";import{t as i}from"./PlqhQ0xa.js";var a=e({__name:`index`,setup(e){return r({title:`Treatments — E-Roghtia`}),(e,r)=>{let a=i;return t(),n(a)}}});export{a as default};

@@ -18,6 +18,7 @@ const patientCodeMessage = ref('')
 const patientCodeStatus = ref<'idle' | 'found' | 'missing' | 'error'>('idle')
 const patientLookupPending = ref(false)
 const patientModalOpen = ref(false)
+const historyOpen = ref(false)
 const patientFilters = reactive({ name: '', phone: '', gender: 'all' })
 const patientResults = ref<PatientPage>({ items: [], total: 0, page: 1, pageSize: 10 })
 const patientSearchPage = ref(1)
@@ -84,6 +85,7 @@ function populatePatient(patient: Patient, cancelLookup = true) {
     patientLookupTask = null
   }
   selectedPatient.value = patient
+  historyOpen.value = false
   patientCode.value = patient.code
   Object.assign(patientDraft, { name: patient.name, phone: patient.phone, age: patient.age, gender: patient.gender, address: patient.address })
   patientCodeMessage.value = ''
@@ -97,6 +99,7 @@ function clearPatient() {
   patientLookupPending.value = false
   patientLookupTask = null
   selectedPatient.value = null
+  historyOpen.value = false
   patientCode.value = ''
   Object.assign(patientDraft, { name: '', phone: '', age: '', gender: '', address: '' })
   patientCodeMessage.value = ''
@@ -455,7 +458,7 @@ await loadOptions()
         <div class="patient-toolbar">
           <p v-if="selectedPatient" class="selected-hint"><UIcon name="i-lucide-circle-check" /> Selected patient · ID {{ localNumber(selectedPatient.id) }}</p>
           <p v-else class="selected-hint">A new patient code is generated when you save.</p>
-          <div class="patient-toolbar-actions"><UButton type="button" color="neutral" variant="outline" icon="i-lucide-search" :disabled="pending" @click="openPatientSearch">Find patient</UButton><UButton v-if="selectedPatient" type="button" color="neutral" variant="ghost" icon="i-lucide-user-plus" :disabled="pending" @click="clearPatient">New patient</UButton><UButton v-else type="button" color="neutral" variant="outline" icon="i-lucide-user-plus" :loading="pending" :disabled="pending || patientLookupPending" @click="createPatient">Register patient</UButton></div>
+          <div class="patient-toolbar-actions"><UButton v-if="selectedPatient" type="button" color="neutral" variant="outline" icon="i-lucide-history" :disabled="pending" @click="historyOpen = true">Treatment history</UButton><UButton type="button" color="neutral" variant="outline" icon="i-lucide-search" :disabled="pending" @click="openPatientSearch">Find patient</UButton><UButton v-if="selectedPatient" type="button" color="neutral" variant="ghost" icon="i-lucide-user-plus" :disabled="pending" @click="clearPatient">New patient</UButton><UButton v-else type="button" color="neutral" variant="outline" icon="i-lucide-user-plus" :loading="pending" :disabled="pending || patientLookupPending" @click="createPatient">Register patient</UButton></div>
         </div>
         <div v-if="selectedPatient" class="patient-fields selected-patient-details" aria-label="Selected patient information">
           <div><span>Patient code</span><bdi dir="ltr">{{ selectedPatient.code }}</bdi></div>
@@ -500,6 +503,7 @@ await loadOptions()
       <PrescriptionPrintOptions v-model:a5="printAsA5" v-model:grayscale="printGrayscale" />
       <div class="form-actions"><UButton type="submit" icon="i-lucide-save" size="lg" :loading="pending" :disabled="pending">{{ editing ? 'Save changes' : 'Save treatment' }}</UButton><UButton type="button" color="neutral" variant="outline" icon="i-lucide-printer" size="lg" :disabled="pending" @click="save(true)">Save and print</UButton><UButton to="/treatments" color="neutral" variant="ghost" size="lg">Back</UButton></div>
     </form>
+    <PatientTreatmentHistoryModal v-if="selectedPatient" v-model:open="historyOpen" :patient="selectedPatient" />
     <UModal v-model:open="patientModalOpen" title="Find patient" description="Search by name, phone or gender, then select a patient." :content="{ dir: 'ltr' }" :ui="{ content: 'w-[min(940px,calc(100vw-1.5rem))] max-w-none min-w-0', body: 'min-w-0' }">
       <template #body>
         <div class="patient-search-modal">

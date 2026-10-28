@@ -287,7 +287,7 @@ after(async () => {
 })
 
 test('protected pages redirect to login; public forms remain standalone', async () => {
-  for (const path of ['/', '/patients', '/prescriptions', '/medications', '/reports', '/settings']) {
+  for (const path of ['/', '/patients', '/medications', '/reports', '/settings']) {
     const response = await fetch(web + path, { redirect: 'manual' })
     assert.equal(response.status, 302, path)
     assert.match(response.headers.get('location'), /^\/login\?redirect=/)

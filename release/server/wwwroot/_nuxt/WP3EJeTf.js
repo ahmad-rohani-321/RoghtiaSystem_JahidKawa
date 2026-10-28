@@ -1,1 +1,0 @@
-function e(){window.dispatchEvent(new Event(`roghtia:data-changed`))}export{e as t};

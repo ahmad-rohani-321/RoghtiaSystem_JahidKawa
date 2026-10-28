@@ -27,7 +27,7 @@ const hospitalAddress = computed(() => info.value?.hospitalAddress?.trim() || ''
 const hospitalPhoneNumbers = computed(() => info.value?.hospitalPhoneNumbers?.trim() || '')
 const doctorLogo = computed(() => info.value?.doctorLogo || null)
 const genders: Record<string, string> = { Male: 'Male', Female: 'Female', Other: 'Other' }
-const dateParts = computed(() => (treatment.value ? formatJalaliDateTime(treatment.value.recordedAtUtc) : '').split(', '))
+const dateParts = computed(() => (treatment.value ? formatDateTime(treatment.value.recordedAtUtc) : '').split(', '))
 const prescriptionNumber = computed(() => {
   if (!treatment.value) return ''
   const year = new Date(treatment.value.recordedAtUtc).getUTCFullYear()
@@ -52,7 +52,7 @@ async function printDocument() {
   if (!treatment.value || loading.value || loadError.value || printPending.value) return
   printPending.value = true
   const pageStyle = document.createElement('style')
-  pageStyle.textContent = `@media print { @page { size: ${printAsA5.value ? 'A5' : 'A4'} portrait; margin: 0; } }`
+  pageStyle.textContent = `@media print { @page { size: ${printAsA5.value ? 'A5' : 'A4'} portrait; margin: 10mm; } }`
   document.head.append(pageStyle)
   try {
     await nextTick()
@@ -160,8 +160,8 @@ onMounted(loadTreatment)
 .doctor-logo-frame img { display: block; width: 100%; height: 100%; object-fit: contain; }
 .doctor-brand h2 { margin: 0; color: #064735; font-size: 15pt; line-height: 1.2; overflow-wrap: anywhere; }
 .doctor-brand-en h2 { color: #b6192d; }
-.doctor-brand p { margin: 0; font-size: 9pt; line-height: 1.25; overflow-wrap: anywhere; }
-.doctor-brand-ps { display: flex; flex-direction: column; align-items: flex-end; justify-content: center; gap: 1mm; text-align: right; }
+.doctor-brand p { margin: 0; font-size: 9pt; line-height: 1.25; white-space: pre-line; overflow-wrap: anywhere; }
+.doctor-brand-ps { display: flex; flex-direction: column; align-items: stretch; justify-content: center; gap: 1mm; direction: rtl; text-align: right; }
 .doctor-brand-ps .hospital-name { color: #17364a; font-size: 15pt; font-weight: 800; line-height: 1.2; }
 .doctor-brand-ps .doctor-name-ps { color: #b6192d; font-size: 15pt; font-weight: 700; }
 .print-sheet-a5 .sheet-header { grid-template-columns: minmax(0, 1.1fr) 20mm minmax(0, 1fr); gap: 2mm; min-height: 28mm; padding-bottom: 2mm; }
@@ -214,15 +214,15 @@ onMounted(loadTreatment)
 .print-sheet-grayscale { filter: grayscale(100%); }
 @media (max-width: 700px) { .print-sheet { padding: 20px 14px 55px; min-height: 0; gap: 18px; font-size: 12px; }.sheet-header { grid-template-columns: minmax(0, 1fr) 38px minmax(0, 1fr); gap: 8px; min-height: 70px; padding-bottom: 8px; }.hospital-logo { width: 75px; height: 34px; }.doctor-logo-frame { width: 34px; height: 42px; }.doctor-brand h2, .doctor-brand-ps .hospital-name, .doctor-brand-ps .doctor-name-ps { font-size: 10px; }.doctor-brand p { font-size: 8px; }.doctor-watermark { width: min(70vw, 100mm); height: min(70vw, 100mm); }.patient-grid { gap: 8px; }.patient-grid > dl + dl { padding-inline-start: 8px; }.patient-grid dl div { grid-template-columns: 70px minmax(0, 1fr); }.rx-mark { font-size: 38px; }.rx-mark sub { font-size: 18px; }.rx-title h2 { font-size: 22px; }.prescription-section { overflow-x: auto; }.prescription-section table { min-width: 480px; }.prescription-notes-grid { grid-template-columns: minmax(0, 1fr); gap: 10px; }.sheet-footer { margin-top: 25px; }.hospital-footer { font-size: 10px; }.green-wave { height: 35px; bottom: -12px; } }
 @media print {
-  @page { size: A4 portrait; margin: 0; }
+  @page { size: A4 portrait; margin: 10mm; }
   :global(html), :global(body), :global(#__nuxt) { display: block !important; width: auto !important; min-height: 0 !important; margin: 0 !important; padding: 0 !important; overflow: visible !important; background: #fff !important; }
   :global(.print-layout), .print-page { display: block !important; visibility: visible !important; width: auto !important; max-width: none !important; min-height: 0 !important; margin: 0 !important; padding: 0 !important; overflow: visible !important; background: #fff !important; }
   .print-toolbar { display: none !important; }
   .print-sheet, .print-sheet * { visibility: visible !important; }
-  .print-sheet { display: flex !important; position: relative; width: 210mm; min-height: 297mm; margin-inline: auto; padding: 11mm 10mm 16mm; gap: 12px; overflow: visible; box-shadow: none; font-size: 9.5pt; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
-  :global(.print-layout:has(.print-sheet-a5)) { width: 148mm !important; margin-inline: auto !important; }
-  .print-page-a5 { width: 148mm !important; }
-  .print-page-a5 .print-sheet { width: 148mm; min-height: 210mm; padding: 7mm 7mm 12mm; gap: 7px; font-size: 8pt; }
+  .print-sheet { display: flex !important; position: relative; width: 100%; min-height: 277mm; margin-inline: auto; padding: 1mm 0 6mm; gap: 12px; overflow: visible; box-shadow: none; font-size: 9.5pt; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  :global(.print-layout:has(.print-sheet-a5)) { width: 100% !important; margin-inline: auto !important; }
+  .print-page-a5 { width: 100% !important; }
+  .print-page-a5 .print-sheet { width: 100%; min-height: 190mm; padding: 1mm 0 6mm; gap: 7px; font-size: 8pt; }
   .print-sheet-grayscale { filter: grayscale(100%) !important; }
   .sheet-header, .patient-box, .rx-heading, .notes-box, .instructions-box, .sheet-footer { break-inside: avoid; }
   .prescription-notes-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3mm; }

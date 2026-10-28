@@ -1,13 +1,12 @@
 <script setup lang="ts">
 import type { Treatment, TreatmentPage, TreatmentQuery, TreatmentSummary } from '#shared/types/treatment'
 
-const props = defineProps<{ prescriptionsOnly?: boolean }>()
 const api = useTreatments()
 const auth = useAuth()
 const toast = useToast()
 const pageSize = 10
 const mode = ref<'today' | 'date' | 'day' | 'week' | 'month'>('today')
-const selectedDate = ref(jalaliToday())
+const selectedDate = ref(gregorianToday())
 const patientName = ref('')
 const appliedName = ref('')
 const page = ref(1)
@@ -23,7 +22,7 @@ let sequence = 0
 let searchTimer: ReturnType<typeof setTimeout> | undefined
 
 function dateRange(): Pick<TreatmentQuery, 'fromUtc' | 'toUtc'> {
-  const date = mode.value === 'today' ? jalaliToday() : selectedDate.value
+  const date = mode.value === 'today' ? gregorianToday() : selectedDate.value
   let start = date
   if (mode.value === 'week') {
     const weekday = new Date(date.toDate('Asia/Kabul').getTime() + 270 * 60000).getUTCDay()
@@ -39,7 +38,7 @@ async function load() {
   loading.value = true
   errorMessage.value = ''
   try {
-    const response = await api.list({ page: page.value, pageSize, patientName: appliedName.value, ...dateRange(), hasPrescription: props.prescriptionsOnly === true })
+    const response = await api.list({ page: page.value, pageSize, patientName: appliedName.value, ...dateRange() })
     if (current !== sequence || userId !== auth.user.value?.id) return
     result.value = response
     loaded.value = true
@@ -79,31 +78,31 @@ await load()
 </script>
 
 <template>
-  <section class="treatment-list" :aria-label="prescriptionsOnly ? 'Prescriptions' : 'Treatments'">
+  <section class="treatment-list" aria-label="Treatments">
     <header class="page-heading">
-      <div><div class="eyebrow"><span /> {{ prescriptionsOnly ? 'Saved prescriptions' : 'Patient care' }}</div><h1>{{ prescriptionsOnly ? 'Prescriptions' : 'Treatments' }}</h1><p>{{ prescriptionsOnly ? 'View saved prescriptions and their medications.' : 'View patient treatments and record a new treatment.' }}</p></div>
+      <div><div class="eyebrow"><span /> Patient care</div><h1>Treatments</h1><p>View patient treatments and record a new treatment.</p></div>
       <UButton to="/treatments/new" icon="i-lucide-plus" size="lg" class="new-button">New treatment</UButton>
     </header>
     <section class="panel list-panel" aria-label="Treatment list" :aria-busy="loading">
       <div class="filter-area">
-        <div class="filter-heading"><span class="filter-icon"><UIcon :name="prescriptionsOnly ? 'i-lucide-clipboard-plus' : 'i-lucide-stethoscope'" /></span><div><h2>{{ prescriptionsOnly ? 'Prescription list' : 'Treatment list' }}</h2><p aria-live="polite">{{ loaded ? `${localNumber(result.total)} records` : 'Loading records' }}</p></div></div>
+        <div class="filter-heading"><span class="filter-icon"><UIcon name="i-lucide-stethoscope" /></span><div><h2>Treatment list</h2><p aria-live="polite">{{ loaded ? `${localNumber(result.total)} records` : 'Loading records' }}</p></div></div>
         <div class="range-buttons" role="group" aria-label="Date filter">
           <UButton v-for="option in ([['today', 'Today'], ['date', 'Specific date'], ['day', 'Day'], ['week', 'Week'], ['month', 'Month']] as const)" :key="option[0]" type="button" size="sm" :color="mode === option[0] ? 'primary' : 'neutral'" :variant="mode === option[0] ? 'solid' : 'ghost'" :aria-pressed="mode === option[0]" @click="changeMode(option[0])">{{ option[1] }}</UButton>
         </div>
         <div class="filter-controls">
           <form class="name-search" role="search" @submit.prevent="applyName"><UInput v-model="patientName" icon="i-lucide-search" placeholder="Search patient name" aria-label="Patient name" :maxlength="200" size="lg" class="w-full" /><UButton type="submit" color="neutral" variant="outline" size="lg">Search</UButton></form>
-          <div v-if="mode !== 'today'" class="date-controls"><UButton v-if="mode === 'day'" type="button" icon="i-lucide-chevron-left" color="neutral" variant="outline" aria-label="Previous day" @click="moveDay(-1)" /><JalaliPicker v-model="selectedDate" /><UButton v-if="mode === 'day'" type="button" icon="i-lucide-chevron-right" color="neutral" variant="outline" aria-label="Next day" @click="moveDay(1)" /></div>
-          <span v-else class="today-label">{{ formatJalali(jalaliToday()) }}</span>
+          <div v-if="mode !== 'today'" class="date-controls"><UButton v-if="mode === 'day'" type="button" icon="i-lucide-chevron-left" color="neutral" variant="outline" aria-label="Previous day" @click="moveDay(-1)" /><DatePicker v-model="selectedDate" /><UButton v-if="mode === 'day'" type="button" icon="i-lucide-chevron-right" color="neutral" variant="outline" aria-label="Next day" @click="moveDay(1)" /></div>
+          <span v-else class="today-label">{{ formatDate(gregorianToday()) }}</span>
         </div>
       </div>
       <div v-if="errorMessage" class="list-error" role="alert"><UIcon name="i-lucide-circle-alert" /><span>{{ errorMessage }}</span><UButton color="neutral" variant="outline" @click="load">Try again</UButton></div>
       <div v-if="loading" class="list-state" role="status"><UIcon name="i-lucide-loader-circle" class="animate-spin" /><p>Loading information…</p></div>
       <template v-else-if="loaded && result.items.length">
-        <div class="table-wrap"><table><caption class="sr-only">Recorded treatments</caption><thead><tr><th>Patient</th><th>Code</th><th>Date</th><th>Blood pressure</th><th>Medications</th><th>Notes</th><th><span class="sr-only">Actions</span></th></tr></thead><tbody><tr v-for="item in result.items" :key="item.id"><td><strong><bdi>{{ item.patient.name }}</bdi></strong></td><td>{{ item.patient.code }}</td><td>{{ formatJalaliDateTime(item.recordedAtUtc) }}</td><td dir="ltr">{{ item.bloodPressure || '—' }}</td><td>{{ localNumber(item.medicationCount) }}</td><td>{{ localNumber(item.clinicalNoteCount) }}</td><td><div class="row-actions"><UButton type="button" color="neutral" variant="ghost" icon="i-lucide-eye" :loading="detailLoadingId === item.id" :disabled="detailLoadingId !== null" @click="showDetail(item)">Details</UButton><UButton :to="`/treatments/${item.id}/edit`" color="neutral" variant="ghost" icon="i-lucide-pencil-line">Edit</UButton><UButton :to="`/treatments/${item.id}/print`" color="neutral" variant="ghost" icon="i-lucide-printer">Print</UButton></div></td></tr></tbody></table></div>
-        <div class="mobile-list"><article v-for="item in result.items" :key="item.id" class="treatment-card"><header><div><h3><bdi>{{ item.patient.name }}</bdi></h3><p>{{ item.patient.code }} · {{ formatJalaliDateTime(item.recordedAtUtc) }}</p></div><span class="medicine-count">{{ localNumber(item.medicationCount) }} Medications</span></header><div class="card-meta"><span>BP: <bdi dir="ltr">{{ item.bloodPressure || '—' }}</bdi></span><span>{{ localNumber(item.clinicalNoteCount) }} Notes</span></div><div class="card-actions"><UButton type="button" color="neutral" variant="outline" icon="i-lucide-eye" :loading="detailLoadingId === item.id" :disabled="detailLoadingId !== null" @click="showDetail(item)">Details</UButton><UButton :to="`/treatments/${item.id}/edit`" color="neutral" variant="outline" icon="i-lucide-pencil-line">Edit</UButton><UButton :to="`/treatments/${item.id}/print`" color="neutral" variant="outline" icon="i-lucide-printer">Print</UButton></div></article></div>
+        <div class="table-wrap"><table><caption class="sr-only">Recorded treatments</caption><thead><tr><th>Patient</th><th>Code</th><th>Date</th><th>Blood pressure</th><th>Medications</th><th>Notes</th><th><span class="sr-only">Actions</span></th></tr></thead><tbody><tr v-for="item in result.items" :key="item.id"><td><strong><bdi>{{ item.patient.name }}</bdi></strong></td><td>{{ item.patient.code }}</td><td>{{ formatDateTime(item.recordedAtUtc) }}</td><td dir="ltr">{{ item.bloodPressure || '—' }}</td><td>{{ localNumber(item.medicationCount) }}</td><td>{{ localNumber(item.clinicalNoteCount) }}</td><td><div class="row-actions"><UButton type="button" color="neutral" variant="ghost" icon="i-lucide-eye" :loading="detailLoadingId === item.id" :disabled="detailLoadingId !== null" @click="showDetail(item)">Details</UButton><UButton :to="`/treatments/${item.id}/edit`" color="neutral" variant="ghost" icon="i-lucide-pencil-line">Edit</UButton><UButton :to="`/treatments/${item.id}/print`" color="neutral" variant="ghost" icon="i-lucide-printer">Print</UButton></div></td></tr></tbody></table></div>
+        <div class="mobile-list"><article v-for="item in result.items" :key="item.id" class="treatment-card"><header><div><h3><bdi>{{ item.patient.name }}</bdi></h3><p>{{ item.patient.code }} · {{ formatDateTime(item.recordedAtUtc) }}</p></div><span class="medicine-count">{{ localNumber(item.medicationCount) }} Medications</span></header><div class="card-meta"><span>BP: <bdi dir="ltr">{{ item.bloodPressure || '—' }}</bdi></span><span>{{ localNumber(item.clinicalNoteCount) }} Notes</span></div><div class="card-actions"><UButton type="button" color="neutral" variant="outline" icon="i-lucide-eye" :loading="detailLoadingId === item.id" :disabled="detailLoadingId !== null" @click="showDetail(item)">Details</UButton><UButton :to="`/treatments/${item.id}/edit`" color="neutral" variant="outline" icon="i-lucide-pencil-line">Edit</UButton><UButton :to="`/treatments/${item.id}/print`" color="neutral" variant="outline" icon="i-lucide-printer">Print</UButton></div></article></div>
         <footer class="list-footer"><span>{{ localNumber((page - 1) * pageSize + 1) }}–{{ localNumber((page - 1) * pageSize + result.items.length) }} of {{ localNumber(result.total) }}</span><nav aria-label="pages"><UButton icon="i-lucide-chevron-left" color="neutral" variant="outline" :disabled="page <= 1 || loading" aria-label="Previous page" @click="changePage(page - 1)" /><span>{{ localNumber(page) }} / {{ localNumber(totalPages) }}</span><UButton icon="i-lucide-chevron-right" color="neutral" variant="outline" :disabled="page >= totalPages || loading" aria-label="Next page" @click="changePage(page + 1)" /></nav></footer>
       </template>
-      <div v-else-if="loaded && !errorMessage" class="list-state"><span class="empty-icon"><UIcon name="i-lucide-clipboard-list" /></span><h3>{{ appliedName ? 'Patient not found' : 'No treatments in this period' }}</h3><p>{{ appliedName ? 'Try another name or change the date range.' : 'Record a new treatment or choose another date.' }}</p><UButton v-if="!prescriptionsOnly" to="/treatments/new" icon="i-lucide-plus">New treatment</UButton></div>
+      <div v-else-if="loaded && !errorMessage" class="list-state"><span class="empty-icon"><UIcon name="i-lucide-clipboard-list" /></span><h3>{{ appliedName ? 'Patient not found' : 'No treatments in this period' }}</h3><p>{{ appliedName ? 'Try another name or change the date range.' : 'Record a new treatment or choose another date.' }}</p><UButton to="/treatments/new" icon="i-lucide-plus">New treatment</UButton></div>
     </section>
     <TreatmentDetail v-if="detail" v-model:open="detailOpen" :treatment="detail" />
   </section>

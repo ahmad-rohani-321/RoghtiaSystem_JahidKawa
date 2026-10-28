@@ -1,1 +1,0 @@
-import{L as e}from"./CHG8xG6n.js";function t(){let t=e()?.vnode?.scopeId;return t?{[t]:``}:{}}export{t};

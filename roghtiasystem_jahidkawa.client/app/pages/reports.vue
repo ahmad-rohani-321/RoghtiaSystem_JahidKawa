@@ -6,7 +6,7 @@ useHead({ title: 'Reports — E-Roghtia' })
 const api = useRequestFetch()
 const auth = useAuth()
 const toast = useToast()
-const today = jalaliToday()
+const today = gregorianToday()
 const period = ref<'week' | 'month' | 'year' | 'custom'>('month')
 const fromDate = shallowRef(today.set({ day: 1 }))
 const toDate = shallowRef(today)
@@ -22,10 +22,10 @@ const ageBands = computed(() => {
   return bands.map(band => ({ ...band, count: data.value?.patients.filter(patient => patient.age >= band.min && patient.age <= band.max).length || 0 }))
 })
 const genderCounts = computed(() => ['Male', 'Female', 'Other'].map(gender => ({ gender, count: data.value?.patients.filter(patient => patient.gender === gender).length || 0 })))
-const rangeLabel = computed(() => period.value === 'custom' ? `${formatJalali(fromDate.value)} — ${formatJalali(toDate.value)}` : period.value === 'week' ? 'Last 7 days' : period.value === 'year' ? 'Current Jalali year' : 'Current Jalali month')
+const rangeLabel = computed(() => period.value === 'custom' ? `${formatDate(fromDate.value)} — ${formatDate(toDate.value)}` : period.value === 'week' ? 'Last 7 days' : period.value === 'year' ? 'Current Gregorian year' : 'Current Gregorian month')
 
 function reportRange() {
-  const endDate = jalaliToday()
+  const endDate = gregorianToday()
   if (period.value === 'week') return { from: endDate.subtract({ days: 6 }), to: endDate }
   if (period.value === 'year') return { from: endDate.set({ month: 1, day: 1 }), to: endDate }
   if (period.value === 'month') return { from: endDate.set({ day: 1 }), to: endDate }
@@ -82,7 +82,7 @@ await loadReports()
       <div class="period-options" role="group" aria-label="Choose reporting period">
         <UButton v-for="option in ([['week', '7 days'], ['month', 'This month'], ['year', 'This year'], ['custom', 'Custom']] as const)" :key="option[0]" type="button" :color="period === option[0] ? 'primary' : 'neutral'" :variant="period === option[0] ? 'solid' : 'outline'" :aria-pressed="period === option[0]" @click="period = option[0]">{{ option[1] }}</UButton>
       </div>
-      <div v-if="period === 'custom'" class="custom-dates"><label>From <JalaliPicker v-model="fromDate" /></label><label>Through <JalaliPicker v-model="toDate" /></label><UButton type="button" icon="i-lucide-search" :loading="loading" @click="loadReports">Apply</UButton></div>
+      <div v-if="period === 'custom'" class="custom-dates"><label>From <DatePicker v-model="fromDate" /></label><label>Through <DatePicker v-model="toDate" /></label><UButton type="button" icon="i-lucide-search" :loading="loading" @click="loadReports">Apply</UButton></div>
     </section>
 
     <div v-if="loading && !data" class="report-state" role="status"><UIcon name="i-lucide-loader-circle" class="animate-spin" /><span>Preparing your reports…</span></div>
@@ -100,7 +100,7 @@ await loadReports()
       <section class="panel report-section" :class="{ 'print-target': activePrint === 'treatments' }" aria-labelledby="treatment-report-title">
         <header class="report-section-heading"><div><span class="report-section-icon"><UIcon name="i-lucide-activity" /></span><div><h2 id="treatment-report-title">Treatment and prescription report</h2><p>Visit volume and patients seen during {{ rangeLabel.toLowerCase() }}.</p></div></div><UButton class="print-action" type="button" color="neutral" variant="outline" icon="i-lucide-printer" @click="printReport('treatments')">Print / PDF</UButton></header>
         <div class="report-two-column">
-          <div><h3>Treatments by day</h3><div v-if="data.treatments.byDay.length" class="daily-bars"><div v-for="day in data.treatments.byDay" :key="day.date" class="daily-row"><time>{{ formatJalali(parseDate(day.date)) }}</time><div class="bar-track"><span :style="{ width: `${Math.max(4, day.treatments / Math.max(...data.treatments.byDay.map(item => item.treatments)) * 100)}%` }" /></div><b>{{ localNumber(day.treatments) }}</b><small>{{ localNumber(day.prescriptions) }} Rx</small></div></div><p v-else class="empty-report">No treatments were recorded in this period.</p></div>
+          <div><h3>Treatments by day</h3><div v-if="data.treatments.byDay.length" class="daily-bars"><div v-for="day in data.treatments.byDay" :key="day.date" class="daily-row"><time>{{ formatDate(parseDate(day.date)) }}</time><div class="bar-track"><span :style="{ width: `${Math.max(4, day.treatments / Math.max(...data.treatments.byDay.map(item => item.treatments)) * 100)}%` }" /></div><b>{{ localNumber(day.treatments) }}</b><small>{{ localNumber(day.prescriptions) }} Rx</small></div></div><p v-else class="empty-report">No treatments were recorded in this period.</p></div>
           <div><h3>Most visited patients</h3><div v-if="data.treatments.mostVisitedPatients.length" class="report-table-wrap"><table><thead><tr><th>Patient</th><th>Code</th><th>Visits</th></tr></thead><tbody><tr v-for="patient in data.treatments.mostVisitedPatients" :key="patient.patientId"><td><bdi>{{ patient.patientName }}</bdi></td><td><bdi>{{ patient.patientCode }}</bdi></td><td>{{ localNumber(patient.visits) }}</td></tr></tbody></table></div><p v-else class="empty-report">No patient visits in this period.</p></div>
         </div>
       </section>
@@ -176,6 +176,7 @@ await loadReports()
 @media (max-width: 900px) { .report-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }.report-two-column { grid-template-columns: minmax(0, 1fr); }.daily-row { grid-template-columns: 115px minmax(35px, 1fr) 30px 48px; } }
 @media (max-width: 600px) { .reports-heading > button { width: 100%; justify-content: center; }.report-filters { align-items: stretch; padding: 17px; }.filter-copy { align-items: flex-start; }.period-options > button { flex: 1 1 40%; justify-content: center; }.custom-dates { align-items: stretch; }.custom-dates label { flex: 1 1 100%; justify-content: space-between; }.custom-dates > button { flex: 1 1 100%; justify-content: center; }.report-summary { gap: 9px; }.summary-card { padding: 13px 11px; gap: 9px; }.summary-icon { width: 34px; height: 34px; }.summary-card strong { font-size: 1.2rem; }.summary-card p { font-size: .78rem; }.report-section { padding: 17px 14px; }.report-section-heading { align-items: flex-start; }.report-section-heading > div { align-items: flex-start; }.print-action { width: 100%; justify-content: center; }.demographic-highlights { grid-template-columns: minmax(0, 1fr); }.daily-row { grid-template-columns: 104px minmax(20px, 1fr) 26px 42px; gap: 6px; font-size: .75rem; }.report-table-wrap table { min-width: 640px; } }
 @media print {
+  @page { size: A4 landscape; margin: 10mm; }
   :global(body *) { visibility: hidden !important; }
   .reports-page, .reports-page * { visibility: visible !important; }
   .reports-page { position: absolute; inset: 0; width: 100%; max-width: none; padding: 0; background: white; color: #111; }

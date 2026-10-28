@@ -188,7 +188,7 @@ await load()
         <div class="patients-table-wrap">
           <table class="patients-table">
             <caption class="sr-only">Your patient information</caption>
-            <thead><tr><th scope="col">No.</th><th scope="col">Patient name</th><th scope="col">Code</th><th scope="col">Phone</th><th scope="col">Age</th><th scope="col">Gender</th><th scope="col">Address</th><th scope="col"><span class="sr-only">Edit</span></th></tr></thead>
+            <thead><tr><th scope="col">No.</th><th scope="col">Patient name</th><th scope="col">Code</th><th scope="col">Phone</th><th scope="col">Age</th><th scope="col">Gender</th><th scope="col">Address</th><th scope="col"><span class="sr-only">Patient actions</span></th></tr></thead>
             <tbody>
               <tr v-for="patient in result.items" :key="patient.id">
                 <td class="patient-id">{{ localNumber(patient.id) }}</td>
@@ -198,7 +198,7 @@ await load()
                 <td><span class="patient-quantity">{{ localNumber(patient.age) }}</span></td>
                 <td>{{ genders[patient.gender] }}</td>
                 <td><p class="patient-remarks" dir="auto">{{ patient.address || '—' }}</p></td>
-                <td><UButton type="button" color="neutral" variant="ghost" icon="i-lucide-pencil-line" size="lg" :loading="editingId === patient.id" :disabled="editingId !== null" :aria-label="`${patient.name}: Edit`" @click="editPatient(patient)">Edit</UButton></td>
+                <td><div class="patient-actions"><UButton :to="`/patient-history/${patient.id}`" color="neutral" variant="outline" icon="i-lucide-notebook-tabs" size="lg">History</UButton><UButton type="button" color="neutral" variant="ghost" icon="i-lucide-pencil-line" size="lg" :loading="editingId === patient.id" :disabled="editingId !== null" :aria-label="`${patient.name}: Edit`" @click="editPatient(patient)">Edit</UButton></div></td>
               </tr>
             </tbody>
           </table>
@@ -208,7 +208,7 @@ await load()
           <article v-for="patient in result.items" :key="patient.id" class="patient-card">
             <header>
               <div><p class="patient-id">No. {{ localNumber(patient.id) }}</p><h3><bdi>{{ patient.name }}</bdi></h3></div>
-              <UButton type="button" color="neutral" variant="outline" icon="i-lucide-pencil-line" size="lg" :loading="editingId === patient.id" :disabled="editingId !== null" :aria-label="`${patient.name}: Edit`" @click="editPatient(patient)">Edit</UButton>
+              <div class="patient-card-actions"><UButton :to="`/patient-history/${patient.id}`" color="neutral" variant="outline" icon="i-lucide-notebook-tabs" size="lg">History</UButton><UButton type="button" color="neutral" variant="outline" icon="i-lucide-pencil-line" size="lg" :loading="editingId === patient.id" :disabled="editingId !== null" :aria-label="`${patient.name}: Edit`" @click="editPatient(patient)">Edit</UButton></div>
             </header>
             <dl>
               <div><dt>Code</dt><dd><bdi>{{ patient.code }}</bdi></dd></div>
@@ -275,18 +275,20 @@ await load()
 .patients-table thead { background: var(--canvas); }
 .patients-table th, .patients-table td { padding: 17px 12px; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; vertical-align: middle; }
 .patients-table thead th { color: var(--muted); font-size: 0.875rem; font-weight: 500; }
-.patients-table th:first-child, .patients-table td:first-child { width: 7%; padding-inline-start: 24px; }
-.patients-table th:nth-child(2) { width: 19%; }
-.patients-table th:nth-child(3) { width: 12%; }
-.patients-table th:nth-child(4) { width: 15%; }
-.patients-table th:nth-child(5) { width: 7%; }
-.patients-table th:last-child, .patients-table td:last-child { width: 16%; padding-inline-end: 20px; }
-.patients-table th:nth-child(6) { width: 10%; }
-.patients-table th:nth-child(7) { width: 18%; }
+.patients-table th:first-child, .patients-table td:first-child { width: 6%; padding-inline-start: 24px; }
+.patients-table th:nth-child(2) { width: 18%; }
+.patients-table th:nth-child(3) { width: 10%; }
+.patients-table th:nth-child(4) { width: 13%; }
+.patients-table th:nth-child(5) { width: 6%; }
+.patients-table th:last-child, .patients-table td:last-child { width: 22%; padding-inline-end: 20px; }
+.patients-table th:nth-child(6) { width: 9%; }
+.patients-table th:nth-child(7) { width: 16%; }
 .patients-table tbody th { font-weight: 600; }
 .patients-table tbody tr:last-child > * { border-bottom: 0; }
 .patients-table tbody tr:hover { background: var(--canvas); }
 .patients-table button { min-height: 44px; font-size: 1rem; white-space: normal; }
+.patient-actions, .patient-card-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.patient-actions > button, .patient-card-actions > button { min-height: 42px; font-size: .9375rem; }
 .patient-id { color: var(--muted); font-size: 0.875rem; }
 .patient-type { display: inline-block; max-width: 100%; background: var(--soft); color: var(--teal); border-radius: 7px; padding: 4px 9px; font-size: 0.875rem; }
 .patient-quantity { font-weight: 650; font-variant-numeric: tabular-nums; }
@@ -305,7 +307,7 @@ await load()
   .patient-card header > div { min-width: 0; }
   .patient-card header p { margin: 0 0 5px; }
   .patient-card h3 { margin: 0; font-size: 1.125rem; font-weight: 650; line-height: 1.8; overflow-wrap: anywhere; }
-  .patient-card header > button { flex-shrink: 0; min-height: 44px; font-size: 1rem; }
+  .patient-card-actions { flex-shrink: 0; }
   .patient-card dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 17px; margin: 18px 0 0; padding-top: 16px; border-top: 1px solid var(--line); }
   .patient-card dl > div { min-width: 0; }
   .patient-card dt { color: var(--muted); font-size: 0.875rem; margin-bottom: 5px; }
@@ -321,6 +323,8 @@ await load()
   .patients-error { margin-inline: 16px; }
   .patients-pagination { padding: 18px 16px; }
   .patients-pagination nav { margin-inline-start: auto; }
+  .patient-card-actions { width: 100%; }
+  .patient-card-actions > button { flex: 1; justify-content: center; }
 }
 @media (max-width: 540px) { .add-patient-button { width: 100%; } }
 @media (max-width: 360px) {

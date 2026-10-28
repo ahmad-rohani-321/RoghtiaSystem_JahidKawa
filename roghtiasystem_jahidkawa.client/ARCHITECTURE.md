@@ -2,7 +2,7 @@
 
 ## Frontend
 
-- `app/pages`: dashboard, doctor Settings and owned Medications; standalone login/register/reset-password; empty prescriptions and reports routes.
+- `app/pages`: dashboard, Treatments, doctor Settings and owned Medications; standalone login/register/reset-password; reports route.
 - `app/composables/useMedications.ts`, `shared/types/medication.ts` and `server/api/medications`: typed, authenticated medication create/read/update, with bounded input validation in `server/utils/medications.ts`. List state is local to the page and has no cross-user cache. No medication Delete operation exists.
 - `app/components/AccountForm.vue`: shared Nuxt UI form, password visibility, field validation, Remember Me for login, pending state and localized error messages.
 - `app/components/SettingsImageInput.vue`, `PasswordChangeModal.vue` and `PINCodeModal.vue`: reusable native Nuxt UI upload/preview controls and authenticated password/PIN forms.
@@ -14,7 +14,7 @@
 - `server/api/auth` and `server/utils/auth.ts`: same-origin API boundary, mutation origin checks, private ASP.NET forwarding, HttpOnly cookie issuance and cleanup.
 - `shared/types/auth.ts`: shared request/session/user types.
 - `app/layouts/default.vue`: current user's identity, logout and responsive floating navigation.
-- `app/composables/useJalali.ts`: PersianCalendar arithmetic and shared localized labels.
+- `app/composables/useDateFormatting.ts`: shared Gregorian calendar and date/time formatting in Kabul local time.
 - `app/assets/css/main.css`: design tokens, normal-size typography, responsive layout and light/dark styling.
 
 Persistent auth cookies last at most the JWT lifetime. Session cookies omit Max-Age/Expires. Nuxt forwards only the JWT as a Bearer header to ASP.NET, validates identity through `/api/auth/me`, and sends only user data and expiry to the browser. UI state does not authorize API access.
@@ -35,9 +35,7 @@ New users receive only the User role. Future authorization policies belong on AP
 
 ## Calendar and dashboard
 
-Exact month labels: وری، غویی، غبرګولی، چنګاښ، زمری، وږی، تله، لړم، لیندۍ، مرغومی، سلواغه، کب.
-
-Weekday header labels: شنبه، یک، دو، سه، چهار، پنج، جمعه. The compact picker retains Jalali calculations, Persian numerals and Saturday-first weeks.
+Date pickers and date displays use the Gregorian calendar, English month and weekday names, Latin numerals, and Kabul local time.
 
 Dashboard widgets persist only their order/visibility in localStorage. No credentials or patient records are placed there. Clinical widgets still use synthetic data.
 

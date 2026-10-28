@@ -18,8 +18,8 @@ const revision = ref(0)
 const fields = [
   { name: 'doctorNamePashto', label: 'Doctor name (Pashto)', max: 160, direction: 'auto' },
   { name: 'doctorNameEnglish', label: 'Doctor name (English)', max: 160, direction: 'ltr' },
-  { name: 'doctorProfessionPashto', label: 'Doctor profession (Pashto)', max: 200, direction: 'auto' },
-  { name: 'doctorProfessionEnglish', label: 'Doctor profession (English)', max: 200, direction: 'ltr' },
+  { name: 'doctorProfessionPashto', label: 'Doctor profession (Pashto)', max: 200, direction: 'auto', multiline: true },
+  { name: 'doctorProfessionEnglish', label: 'Doctor profession (English)', max: 200, direction: 'ltr', multiline: true },
   { name: 'hospitalNamePashto', label: 'Hospital name (Pashto)', max: 200, direction: 'auto' },
   { name: 'hospitalAddress', label: 'Hospital address', max: 300, direction: 'auto' },
   { name: 'hospitalPhoneNumbers', label: 'Hospital phone number(s)', max: 300, direction: 'ltr' }
@@ -183,8 +183,9 @@ onMounted(loadInformation)
       </div>
       <UForm v-else ref="doctorForm" :state="form" :validate="validate" :disabled="busy" novalidate class="doctor-form" @submit="save" @error="focusError">
         <div class="settings-text-grid">
-          <UFormField v-for="field in fields" :key="field.name" :label="field.label" :name="field.name" size="lg" :class="{ 'full-width': field.name.startsWith('hospital') }" :ui="{ label: 'text-base' }">
-            <UInput v-model="form[field.name]" :name="field.name" :dir="field.direction" :maxlength="field.max" :placeholder="field.name === 'hospitalPhoneNumbers' ? 'Separate multiple phone numbers with commas' : field.label" :spellcheck="false" autocomplete="off" size="xl" class="w-full" :ui="{ base: 'settings-input' }" />
+          <UFormField v-for="field in fields" :key="field.name" :label="field.label" :name="field.name" size="lg" :class="{ 'full-width': field.name.startsWith('hospital') || field.multiline }" :ui="{ label: 'text-base' }">
+            <UTextarea v-if="field.multiline" v-model="form[field.name]" :name="field.name" :dir="field.direction" :maxlength="field.max" :placeholder="field.label" :spellcheck="false" :rows="3" class="w-full" :ui="{ base: 'settings-input' }" />
+            <UInput v-else v-model="form[field.name]" :name="field.name" :dir="field.direction" :maxlength="field.max" :placeholder="field.name === 'hospitalPhoneNumbers' ? 'Separate multiple phone numbers with commas' : field.label" :spellcheck="false" autocomplete="off" size="xl" class="w-full" :ui="{ base: 'settings-input' }" />
           </UFormField>
         </div>
 

@@ -102,7 +102,6 @@ html { -webkit-text-size-adjust:100%; text-size-adjust:100%; }
 @keyframes dashboard-shimmer { to { background-position-x:-200%; } }
 @media(prefers-reduced-motion:reduce) { .dashboard-skeleton { animation:none; } }
 
-@page { size: A4 landscape; margin: 10mm; }
 @media print {
   body, .app-shell, .main-container { background:#fff!important; color:#1f383e!important; }
   .topbar, .skip-link, .heading-actions, .filter-row .filters, .medical-art, .dashboard-alert, .page-footer, .care-note, .table-search, .patients-widget .widget-heading a, .table-footer, .chart-hover, .period-switch, [data-radix-popper-content-wrapper] { display:none!important; }

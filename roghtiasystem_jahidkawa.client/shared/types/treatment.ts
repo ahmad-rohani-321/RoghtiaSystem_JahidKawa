@@ -87,7 +87,7 @@ export interface TreatmentQuery {
   page?: number
   pageSize?: number
   patientName?: string
+  patientId?: number
   fromUtc?: string
   toUtc?: string
-  hasPrescription?: boolean
 }
