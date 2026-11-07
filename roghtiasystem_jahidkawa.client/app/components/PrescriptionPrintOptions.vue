@@ -5,8 +5,8 @@ const grayscale = defineModel('grayscale', { default: false })
 
 <template>
   <div class="prescription-print-options" role="group" aria-label="Prescription print options">
-    <UCheckbox v-model="a5" label="Print on A5 paper" />
-    <UCheckbox v-model="grayscale" label="Print in grayscale (black and white)" />
+    <UCheckbox v-model="a5" label="A5" />
+    <UCheckbox v-model="grayscale" label="Grayscale" />
   </div>
 </template>
 

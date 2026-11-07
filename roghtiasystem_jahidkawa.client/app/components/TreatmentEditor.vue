@@ -14,7 +14,7 @@ const doctorInformation = useDoctorInformation()
 const toast = useToast()
 const selectedPatient = ref<Patient | null>(null)
 const patientCode = ref('')
-const patientDraft = reactive({ name: '', phone: '', age: '' as number | string, gender: '', address: '' })
+const patientDraft = reactive({ name: '', phone: '', age: '' as number | string, gender: 'Male', address: '' })
 const patientCodeMessage = ref('')
 const patientCodeStatus = ref<'idle' | 'found' | 'missing' | 'error'>('idle')
 const patientLookupPending = ref(false)
@@ -103,7 +103,7 @@ function clearPatient() {
   selectedPatient.value = null
   historyOpen.value = false
   patientCode.value = ''
-  Object.assign(patientDraft, { name: '', phone: '', age: '', gender: '', address: '' })
+  Object.assign(patientDraft, { name: '', phone: '', age: '', gender: 'Male', address: '' })
   patientCodeMessage.value = ''
   patientCodeStatus.value = 'idle'
 }
@@ -112,7 +112,7 @@ function onPatientCodeChange(value: string | number | null | undefined) {
   const next = String(value ?? '')
   if (selectedPatient.value && next.trim().toUpperCase() !== selectedPatient.value.code) {
     selectedPatient.value = null
-    Object.assign(patientDraft, { name: '', phone: '', age: '', gender: '', address: '' })
+    Object.assign(patientDraft, { name: '', phone: '', age: '', gender: 'Male', address: '' })
   }
   ++patientLookupRequest
   patientLookupPending.value = false

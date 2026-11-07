@@ -122,9 +122,16 @@ onMounted(loadTreatment)
 <template>
   <div class="print-page" :class="{ 'print-page-a5': printAsA5 }">
     <div v-if="loading" class="print-state" role="status"><UIcon name="i-lucide-loader-circle" class="animate-spin" />Loading treatment…</div>
-    <div v-else-if="loadError" class="print-state print-error" role="alert"><span>{{ loadError }}</span><UButton type="button" color="neutral" variant="outline" icon="i-lucide-refresh-cw" @click="loadTreatment">Try again</UButton><UButton to="/treatments" color="neutral" variant="ghost">Back to treatments</UButton></div>
+    <div v-else-if="loadError" class="print-state print-error" role="alert"><span>{{ loadError }}</span><UButton type="button" color="neutral" variant="outline" icon="i-lucide-refresh-cw" @click="loadTreatment">Try again</UButton><UButton to="/treatments" color="neutral" variant="ghost">Back</UButton></div>
     <template v-else-if="treatment">
-    <div class="print-toolbar"><UButton :to="`/treatments/${id}/edit`" color="neutral" variant="outline" icon="i-lucide-arrow-left">Back to editor</UButton><PrescriptionPrintOptions v-model:a5="printAsA5" v-model:grayscale="printGrayscale" /><UButton type="button" icon="i-lucide-printer" :loading="printPending" @click="printDocument">Print</UButton></div>
+    <div class="print-toolbar">
+      <UButton to="/treatments" color="neutral" variant="outline" icon="i-lucide-arrow-left">Back</UButton>
+      <div class="print-toolbar-actions">
+        <UButton to="/treatments/new" color="primary" variant="soft" icon="i-lucide-plus">New</UButton>
+        <PrescriptionPrintOptions v-model:a5="printAsA5" v-model:grayscale="printGrayscale" />
+        <UButton type="button" icon="i-lucide-printer" :loading="printPending" @click="printDocument">Print</UButton>
+      </div>
+    </div>
     <article class="print-sheet" :class="{ 'print-sheet-a5': printAsA5, 'print-sheet-grayscale': printGrayscale }" dir="ltr" aria-label="Printable treatment prescription">
       <img v-if="doctorLogo" class="doctor-watermark" :src="doctorLogo" alt="" aria-hidden="true">
       <header class="sheet-header">
@@ -168,7 +175,11 @@ onMounted(loadTreatment)
 .print-state { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; padding: 20px; border: 1px solid #bfd9cd; border-radius: 12px; background: #f0f7f3; color: #064735; }
 .print-state .iconify { width: 20px; height: 20px; }
 .print-error { justify-content: space-between; }
-.print-toolbar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; }
+.print-toolbar { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 12px; margin-bottom: 16px; padding: 10px 12px; border: 1px solid #d8e8e2; border-radius: 14px; background: #fff; box-shadow: 0 8px 24px #173f340d; }
+.print-toolbar-actions { display: flex; align-items: center; justify-content: flex-end; min-width: 0; gap: 8px; }
+.print-toolbar :deep(.prescription-print-options) { flex: 0 1 auto; flex-wrap: nowrap; gap: 8px 12px; padding: 8px 10px; border-radius: 10px; font-size: 12px; white-space: nowrap; }
+.print-toolbar :deep(.prescription-print-options label) { white-space: nowrap; }
+@media (max-width: 720px) { .print-toolbar { grid-template-columns: minmax(0, 1fr); padding: 10px; }.print-toolbar > :first-child { justify-self: start; }.print-toolbar-actions { justify-content: flex-start; flex-wrap: wrap; }.print-toolbar :deep(.prescription-print-options) { flex-wrap: wrap; white-space: normal; }.print-toolbar :deep(.prescription-print-options label) { white-space: normal; } }
 .print-sheet { position: relative; isolation: isolate; display: flex; flex-direction: column; gap: 12px; width: 210mm; min-height: 297mm; box-sizing: border-box; padding: 11mm 10mm 16mm; overflow: hidden; background: #fff; box-shadow: 0 20px 55px #173f3426; font-family: 'Vazirmatn', 'Segoe UI', Arial, sans-serif; font-size: 9.5pt; line-height: 1.4; }
 .doctor-watermark { position: absolute; z-index: -1; top: 50%; left: 50%; width: 112mm; height: 112mm; object-fit: contain; opacity: .045; transform: translate(-50%, -50%); pointer-events: none; }
 .sheet-header { position: relative; z-index: 1; display: grid; grid-template-columns: minmax(0, 1.1fr) 25mm minmax(0, 1fr); gap: 4mm; align-items: center; min-height: 33mm; padding: 0 0 2.5mm; border-bottom: .45mm solid #718b7c; }

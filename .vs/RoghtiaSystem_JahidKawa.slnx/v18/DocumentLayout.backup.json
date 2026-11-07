@@ -1,12 +1,54 @@
 {
   "Version": 1,
   "WorkspaceRootPath": "D:\\Projects\\RoghtiaSystem_JahidKawa\\",
-  "Documents": [],
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{1B58B426-2C68-0226-C447-2D460F7B1CEB}|roghtiasystem_jahidkawa.client\\roghtiasystem_jahidkawa.client.esproj|d:\\projects\\roghtiasystem_jahidkawa\\roghtiasystem_jahidkawa.client\\roghtiasystem_jahidkawa.client.esproj||{FA3CD31E-987B-443A-9B81-186104E8DAC1}|",
+      "RelativeMoniker": "D:0:0:{1B58B426-2C68-0226-C447-2D460F7B1CEB}|roghtiasystem_jahidkawa.client\\roghtiasystem_jahidkawa.client.esproj|solutionrelative:roghtiasystem_jahidkawa.client\\roghtiasystem_jahidkawa.client.esproj||{FA3CD31E-987B-443A-9B81-186104E8DAC1}|"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{FF9443B6-AB99-ED26-16CB-1D329188D1CB}|RoghtiaSystem_JahidKawa.Server\\RoghtiaSystem_JahidKawa.Server.csproj|d:\\projects\\roghtiasystem_jahidkawa\\roghtiasystem_jahidkawa.server\\roghtiasystem_jahidkawa.server.csproj||{FA3CD31E-987B-443A-9B81-186104E8DAC1}|",
+      "RelativeMoniker": "D:0:0:{FF9443B6-AB99-ED26-16CB-1D329188D1CB}|RoghtiaSystem_JahidKawa.Server\\RoghtiaSystem_JahidKawa.Server.csproj|solutionrelative:roghtiasystem_jahidkawa.server\\roghtiasystem_jahidkawa.server.csproj||{FA3CD31E-987B-443A-9B81-186104E8DAC1}|"
+    }
+  ],
   "DocumentGroupContainers": [
     {
       "Orientation": 0,
       "VerticalTabListWidth": 256,
-      "DocumentGroups": []
+      "DocumentGroups": [
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": 0,
+          "Children": [
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "roghtiasystem_jahidkawa.client",
+              "DocumentMoniker": "D:\\Projects\\RoghtiaSystem_JahidKawa\\roghtiasystem_jahidkawa.client\\roghtiasystem_jahidkawa.client.esproj",
+              "RelativeDocumentMoniker": "roghtiasystem_jahidkawa.client\\roghtiasystem_jahidkawa.client.esproj",
+              "ToolTip": "D:\\Projects\\RoghtiaSystem_JahidKawa\\roghtiasystem_jahidkawa.client\\roghtiasystem_jahidkawa.client.esproj",
+              "RelativeToolTip": "roghtiasystem_jahidkawa.client\\roghtiasystem_jahidkawa.client.esproj",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAsAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001001|",
+              "WhenOpened": "2026-10-28T13:11:05.968Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "RoghtiaSystem_JahidKawa.Server",
+              "DocumentMoniker": "D:\\Projects\\RoghtiaSystem_JahidKawa\\RoghtiaSystem_JahidKawa.Server\\RoghtiaSystem_JahidKawa.Server.csproj",
+              "RelativeDocumentMoniker": "RoghtiaSystem_JahidKawa.Server\\RoghtiaSystem_JahidKawa.Server.csproj",
+              "ToolTip": "D:\\Projects\\RoghtiaSystem_JahidKawa\\RoghtiaSystem_JahidKawa.Server\\RoghtiaSystem_JahidKawa.Server.csproj*",
+              "RelativeToolTip": "RoghtiaSystem_JahidKawa.Server\\RoghtiaSystem_JahidKawa.Server.csproj*",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAsAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000758|",
+              "WhenOpened": "2026-10-28T13:09:38.049Z",
+              "EditorCaption": ""
+            }
+          ]
+        }
+      ]
     }
   ]
 }

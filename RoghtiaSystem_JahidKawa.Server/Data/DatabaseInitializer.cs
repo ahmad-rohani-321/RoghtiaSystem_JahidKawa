@@ -11,19 +11,28 @@ namespace RoghtiaSystem_JahidKawa.Server.Data
             // Fresh databases use the checked-in migrations, so dotnet ef database update
             // and normal startup create the same schema and migration history.
             await context.Database.OpenConnectionAsync();
-            bool hasUsers, hasMigrationHistory;
+            bool hasApplicationSchema, hasMigrationHistory, hasCurrentBaselineMigration = false;
             try
             {
                 await using var command = context.Database.GetDbConnection().CreateCommand();
-                command.CommandText = "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'Users')";
-                hasUsers = Convert.ToInt32(await command.ExecuteScalarAsync()) != 0;
+                // A copied legacy database can already contain application tables without
+                // EF's migration history. Do not replay the first migration over it: the
+                // compatibility upgrade below safely adds missing columns and tables.
+                command.CommandText = "PRAGMA table_info([Users])";
+                await using (var reader = await command.ExecuteReaderAsync())
+                    hasApplicationSchema = await reader.ReadAsync();
                 command.CommandText = "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = '__EFMigrationsHistory')";
                 hasMigrationHistory = Convert.ToInt32(await command.ExecuteScalarAsync()) != 0;
+                if (hasMigrationHistory)
+                {
+                    command.CommandText = "SELECT EXISTS(SELECT 1 FROM __EFMigrationsHistory WHERE MigrationId = '20261017053948_FirstMigration')";
+                    hasCurrentBaselineMigration = Convert.ToInt32(await command.ExecuteScalarAsync()) != 0;
+                }
             }
             finally { await context.Database.CloseConnectionAsync(); }
-            // Fresh and EF-managed databases use migrations. Older user databases without
-            // migration history retain the additive compatibility upgrade below.
-            if (!hasUsers || hasMigrationHistory) await context.Database.MigrateAsync();
+            // Fresh and EF-managed databases use migrations. Existing databases without
+            // an applied migration history retain the additive compatibility upgrade below.
+            if (hasCurrentBaselineMigration || (!hasApplicationSchema && !hasMigrationHistory)) await context.Database.MigrateAsync();
 
             await context.Database.OpenConnectionAsync();
             try
