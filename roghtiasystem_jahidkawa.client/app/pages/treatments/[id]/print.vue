@@ -56,7 +56,7 @@ async function printDocument() {
   printPending.value = true
   await printPreferencesSaveTask
   const pageStyle = document.createElement('style')
-  pageStyle.textContent = `@media print { @page { size: ${printAsA5.value ? 'A5' : 'A4'} portrait; margin: 0; } }`
+  pageStyle.textContent = `@media print { @page { size: ${printAsA5.value ? 'A5' : 'A4'} portrait; margin: ${printAsA5.value ? '7mm' : '0'}; } }`
   document.head.append(pageStyle)
   try {
     await nextTick()
@@ -150,7 +150,7 @@ onMounted(loadTreatment)
       <section class="patient-box"><h2><UIcon name="i-lucide-user-round" /> Patient information</h2><div class="patient-grid"><dl><div><dt>Name</dt><dd><bdi>{{ treatment.patient.name }}</bdi></dd></div><div><dt>Code</dt><dd dir="ltr">{{ treatment.patient.code }}</dd></div><div><dt>Age / Gender</dt><dd>{{ localNumber(treatment.patient.age) }} years / {{ genders[treatment.patient.gender] || treatment.patient.gender }}</dd></div><div><dt>Phone</dt><dd dir="ltr">{{ treatment.patient.phone || '—' }}</dd></div></dl><dl><div><dt>Date</dt><dd>{{ dateParts[0] }}</dd></div><div><dt>Time</dt><dd dir="ltr">{{ dateParts[1] }}</dd></div><div><dt>Blood pressure</dt><dd dir="ltr">{{ treatment.bloodPressure || '—' }}</dd></div><div><dt>Address</dt><dd><bdi>{{ treatment.patient.address || '—' }}</bdi></dd></div></dl></div></section>
 
       <template v-if="treatment.prescriptionItems.length">
-        <div class="rx-heading"><div class="rx-title"><span class="rx-mark">R<sub>x</sub></span><h2>Prescription</h2></div><p>Prescription no.: <strong dir="ltr">{{ prescriptionNumber }}</strong></p></div>
+        <div class="rx-heading"><div class="rx-title"><span class="rx-mark">R<sub>x</sub></span><h2>Prescription</h2></div></div>
         <section class="prescription-section" aria-label="Prescription medications"><table><thead><tr><th>#</th><th>Medications</th><th>Type</th><th>Dose</th><th>Frequency</th><th>Duration</th></tr></thead><tbody><tr v-for="item in treatment.prescriptionItems" :key="item.id"><td><span class="number-circle">{{ localNumber(item.position) }}</span></td><td class="medicine-name"><bdi>{{ item.medicationName }}</bdi></td><td>{{ item.medicationType }}</td><td>{{ localNumber(item.dose) }}</td><td>{{ item.frequency }}</td><td>{{ item.duration }}</td></tr></tbody></table></section>
       </template>
 
@@ -200,6 +200,23 @@ onMounted(loadTreatment)
 .print-sheet-a5 .doctor-logo-frame { width: 19mm; height: 25mm; }
 .print-sheet-a5 .doctor-brand h2, .print-sheet-a5 .doctor-brand-ps .hospital-name, .print-sheet-a5 .doctor-brand-ps .doctor-name-ps { font-size: 10pt; }
 .print-sheet-a5 .doctor-brand p { font-size: 7.5pt; }
+.print-sheet-a5 .green-wave { display: none; }
+.print-sheet-a5 .number-circle { display: inline; width: auto; height: auto; border-radius: 0; background: transparent; color: #103e35; font-weight: 800; }
+.print-sheet-a5 .prescription-section th { padding: 1.15mm 1.1mm; }
+.print-sheet-a5 .prescription-section td { min-height: 5mm; padding: 1.15mm 1.1mm; line-height: 1.2; vertical-align: middle; }
+.print-sheet-a5 .prescription-section th:first-child { width: 7mm; }
+.print-sheet-a5 .patient-box { padding: 2mm 2.5mm; border-radius: 2mm; }
+.print-sheet-a5 .patient-box h2 { gap: 1.5mm; margin-bottom: .8mm; font-size: 8.5pt; }
+.print-sheet-a5 .patient-box h2 .iconify { width: 4.5mm; height: 4.5mm; }
+.print-sheet-a5 .patient-grid { gap: 3.5mm; font-size: 7.25pt; }
+.print-sheet-a5 .patient-grid > dl { gap: .45mm; }
+.print-sheet-a5 .patient-grid > dl + dl { padding-inline-start: 3.5mm; }
+.print-sheet-a5 .patient-grid dl div { grid-template-columns: 22mm minmax(0, 1fr); gap: 1mm; }
+.print-sheet-a5 .prescription-notes-grid { gap: 2mm; }
+.print-sheet-a5 .rx-note-box { padding: 1.5mm 2mm; border-radius: 2mm; }
+.print-sheet-a5 .rx-note-box h2 { gap: 1.5mm; margin-bottom: .7mm; font-size: 7.75pt; }
+.print-sheet-a5 .rx-note-box h2 .iconify { width: 4mm; height: 4mm; }
+.print-sheet-a5 .rx-note-box p { font-size: 7.25pt; line-height: 1.25; }
 .patient-box, .notes-box, .instructions-box { border: 1px solid #bfd9cd; border-radius: 3mm; background: linear-gradient(110deg, #f0f7f3, #f8fbf8); }
 .patient-box { padding: 3mm 4mm; }
 .patient-box h2, .notes-box h2, .instructions-box h2 { display: flex; align-items: center; gap: 3mm; margin: 0 0 2mm; color: #064735; font-size: 11pt; }
@@ -251,9 +268,38 @@ onMounted(loadTreatment)
   .print-toolbar { display: none !important; }
   .print-sheet, .print-sheet * { visibility: visible !important; }
   .print-sheet { display: flex !important; position: relative; width: 210mm; min-height: 297mm; margin-inline: auto; padding: 11mm 10mm 16mm; gap: 12px; overflow: visible; box-shadow: none; font-size: 9.5pt; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
-  :global(.print-layout:has(.print-sheet-a5)) { width: 148mm !important; margin-inline: auto !important; }
-  .print-page-a5 { width: 148mm !important; }
-  .print-page-a5 .print-sheet { width: 148mm; min-height: 210mm; padding: 7mm 7mm 12mm; gap: 7px; font-size: 8pt; }
+.print-sheet:not(.print-sheet-a5) { min-height: 297mm; padding: 8mm 10mm 30mm; gap: 7px; }
+  .print-sheet:not(.print-sheet-a5) .sheet-header { min-height: 29mm; gap: 3mm; padding-bottom: 1.5mm; }
+  .print-sheet:not(.print-sheet-a5) .hospital-logo { width: 31mm; height: 14mm; }
+  .print-sheet:not(.print-sheet-a5) .doctor-logo-frame { width: 22mm; height: 27mm; }
+  .print-sheet:not(.print-sheet-a5) .patient-box { padding: 2.5mm 3mm; }
+  .print-sheet:not(.print-sheet-a5) .patient-box h2 { margin-bottom: 1mm; font-size: 10pt; }
+  .print-sheet:not(.print-sheet-a5) .patient-grid { gap: 5mm; }
+  .print-sheet:not(.print-sheet-a5) .patient-grid > dl { gap: .6mm; }
+  .print-sheet:not(.print-sheet-a5) .patient-grid > dl + dl { padding-inline-start: 5mm; }
+  .print-sheet:not(.print-sheet-a5) .patient-grid dl div { grid-template-columns: 26mm minmax(0, 1fr); gap: 1.5mm; }
+  .print-sheet:not(.print-sheet-a5) .rx-heading { min-height: 10mm; }
+  .print-sheet:not(.print-sheet-a5) .prescription-section th { padding: 1.25mm 1.2mm; }
+  .print-sheet:not(.print-sheet-a5) .prescription-section td { min-height: 6.5mm; padding: 1.25mm 1.2mm; line-height: 1.2; vertical-align: middle; }
+  .print-sheet:not(.print-sheet-a5) .number-circle { width: 6.5mm; height: 6.5mm; }
+  .print-sheet:not(.print-sheet-a5) .sheet-footer { position: relative; z-index: 1; inset: auto; bottom: auto; margin-top: auto; padding: 2mm 0 0; background: #fff; }
+  .print-sheet:not(.print-sheet-a5) .green-wave { display: block; position: fixed; z-index: 0; inset-inline: -5mm; bottom: -37mm; }
+  .print-sheet-a5 { background: radial-gradient(ellipse at 50% 42%, #edf8f3 0%, #f8fcfa 32%, #fff 66%) !important; }
+  .print-sheet-a5 > :not(.doctor-watermark):not(.green-wave) { position: relative; z-index: 1; }
+  .print-sheet-a5 .doctor-watermark { z-index: 0; opacity: .06; }
+  .print-sheet-a5 .green-wave { display: none !important; }
+  :global(.print-layout:has(.print-sheet-a5)) { width: 134mm !important; margin-inline: auto !important; }
+  .print-page-a5 { width: 134mm !important; }
+  .print-page-a5 .print-sheet { width: 134mm; min-height: 196mm; padding: 0; gap: 7px; font-size: 8pt; }
+.print-page-a5 .green-wave { display: none; }
+  .print-page-a5 .sheet-footer { position: absolute; z-index: 1; inset-inline: 0; bottom: 0; margin: 0; padding: 1.5mm 0 0; gap: 1.5mm 5mm; background: transparent; }
+  .print-page-a5 .signature-block strong { font-size: 8pt; }
+  .print-page-a5 .footer-date { font-size: 7.25pt; }
+  .print-page-a5 .hospital-footer { gap: 1mm 4mm; padding-top: 1mm; font-size: 6.5pt; line-height: 1.2; }
+  .print-page-a5 .number-circle { display: inline; width: auto; height: auto; border-radius: 0; background: transparent; color: #103e35; font-weight: 800; }
+  .print-page-a5 .prescription-section th { padding: 1.15mm 1.1mm; }
+  .print-page-a5 .prescription-section td { min-height: 5mm; padding: 1.15mm 1.1mm; line-height: 1.2; vertical-align: middle; }
+  .print-page-a5 .prescription-section th:first-child { width: 7mm; }
   .print-sheet-grayscale { filter: grayscale(100%) !important; }
   .sheet-header, .patient-box, .rx-heading, .notes-box, .instructions-box, .sheet-footer { break-inside: avoid; }
   .prescription-notes-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3mm; }

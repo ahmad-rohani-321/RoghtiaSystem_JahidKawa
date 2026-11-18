@@ -1,0 +1,10 @@
+using Microsoft.Data.Sqlite;
+SQLitePCL.Batteries_V2.Init();
+var connection = Environment.GetEnvironmentVariable("ConnectionStrings__MainDatabase") ?? throw new InvalidOperationException("No configured database connection was found.");
+var builder = new SqliteConnectionStringBuilder(connection) { DataSource = args[0], Mode = SqliteOpenMode.ReadOnly };
+await using var database = new SqliteConnection(builder.ConnectionString);
+await database.OpenAsync();
+await using var command = database.CreateCommand();
+command.CommandText = "SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name";
+await using var reader = await command.ExecuteReaderAsync();
+while (await reader.ReadAsync()) Console.WriteLine(reader.GetString(0));
